@@ -23,7 +23,13 @@ const S = {
   status: {},
   rounds: [], organizers: {}, dates: [], plan: {},
   meFilter: 'all', meQuery: '',
-  storeInfo: { driver: '—', shared: false, degraded: false },
+  // getter, nao snapshot: o store pode cair para local no meio da sessao
+  // e a tela Configuracao precisa contar a verdade quando isso acontece.
+  get storeInfo() {
+    return store
+      ? { driver: store.driver, shared: store.shared, degraded: store.degraded }
+      : { driver: '—', shared: false, degraded: false };
+  },
 
   activeIds: () => PARTICIPANTS.filter((p) => !S.cfg.disabled.includes(p.id)).map((p) => p.id),
   mailOf: (id) => S.cfg.emails[id] || mail(byId(id)),
@@ -304,8 +310,12 @@ window.App = App;
 
 /* ─────────────── boot ─────────────── */
 async function boot() {
-  store = await createStore(CONFIG.storage);
-  S.storeInfo = { driver: store.driver, shared: store.shared, degraded: store.degraded };
+  store = await createStore(CONFIG.storage, {
+    onDegrade: (msg) => {
+      toast(msg, 'alert');
+      render();
+    }
+  });
 
   const data = await store.load();
   S.status = data.status || {};

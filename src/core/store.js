@@ -19,6 +19,24 @@ const K = {
   me: 'rodizio1x1:me:v1'
 };
 
+/**
+ * O SDK do Firestore nao rejeita quando o backend esta inacessivel: ele
+ * repete indefinidamente. Sem isto, projeto mal configurado, banco nao criado
+ * ou CDN bloqueada pela rede corporativa deixam o app parado no "Carregando"
+ * para sempre, e nenhum try/catch chega a rodar.
+ */
+const TIMEOUT_MS = { read: 6000, write: 8000 };
+
+function withTimeout(promise, ms, acao) {
+  let t;
+  return Promise.race([
+    promise.finally(() => clearTimeout(t)),
+    new Promise((_, reject) => {
+      t = setTimeout(() => reject(new Error(`Firestore nao respondeu em ${ms}ms (${acao}).`)), ms);
+    })
+  ]);
+}
+
 const safeParse = (raw, fallback) => {
   try {
     return raw ? JSON.parse(raw) : fallback;
@@ -93,21 +111,22 @@ function firebaseDriver(cfg) {
     shared: true,
     async init() {
       const V = cfg.sdkVersion || '10.12.2';
-      const [{ initializeApp }, fs] = await Promise.all([
+      // A CDN do gstatic tambem pode estar bloqueada na rede da empresa.
+      const [{ initializeApp }, fs] = await withTimeout(Promise.all([
         import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
         import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
-      ]);
+      ]), TIMEOUT_MS.read, 'carregar o SDK');
       mods = fs;
       db = fs.getFirestore(initializeApp(cfg));
       ref = fs.doc(db, path, docId);
     },
     async read() {
-      const snap = await mods.getDoc(ref);
+      const snap = await withTimeout(mods.getDoc(ref), TIMEOUT_MS.read, 'leitura');
       const d = snap.exists() ? snap.data() : {};
       return { status: d.status || {}, config: d.config || {} };
     },
     async write(patch) {
-      await mods.setDoc(ref, patch, { merge: true });
+      await withTimeout(mods.setDoc(ref, patch, { merge: true }), TIMEOUT_MS.write, 'escrita');
     },
     watch(cb) {
       mods.onSnapshot(ref, (snap) => {
@@ -119,45 +138,84 @@ function firebaseDriver(cfg) {
 }
 
 /**
+ * Degradar para local nao e detalhe de robustez: e o que separa "o painel
+ * compartilhado esta fora do ar" de "o gestor clicou em Registrar 1x1, nao
+ * aconteceu nada e o registro sumiu". Falha de leitura derruba o boot inteiro;
+ * falha de escrita e pior ainda, porque e silenciosa.
+ *
  * @param {object} storageCfg  config.storage vindo de config.js
- * @returns {{driver:string, shared:boolean, degraded:boolean, load, saveStatus, saveConfig, getMe, setMe, watch}}
+ * @param {{onDegrade?: (msg: string) => void}} [hooks]
  */
-export async function createStore(storageCfg) {
+export async function createStore(storageCfg, hooks = {}) {
   const wanted = storageCfg?.driver || 'local';
-  let driver;
+  let live;
+  let backup = null;
   let degraded = false;
 
   if (wanted === 'firebase' && storageCfg.firebase?.projectId) {
-    driver = firebaseDriver(storageCfg.firebase);
+    const remote = firebaseDriver(storageCfg.firebase);
     try {
-      await driver.init();
+      await remote.init();
+      live = remote;
+      backup = localDriver();
     } catch (err) {
-      console.warn('[store] Firestore indisponível, caindo para localStorage.', err);
-      driver = localDriver();
+      console.warn('[store] Firestore nao inicializou; seguindo em modo local.', err);
+      live = localDriver();
       degraded = true;
     }
   } else {
-    driver = localDriver();
-    await driver.init();
+    live = localDriver();
+    await live.init();
+  }
+
+  /** Troca o Firestore pelo localStorage no meio da sessao, uma vez so. */
+  function degrade(err, acao) {
+    console.warn(`[store] Firestore falhou na ${acao}; seguindo em modo local.`, err);
+    if (degraded || !backup) return;
+    degraded = true;
+    live = backup;
+    backup = null;
+    hooks.onDegrade?.('Firestore indisponível — o que você registrar fica só neste navegador.');
   }
 
   let cache = { status: {}, config: {} };
 
   return {
-    driver: driver.name,
-    shared: driver.shared,
-    degraded,
+    get driver() {
+      return live.name;
+    },
+    get shared() {
+      return live.shared;
+    },
+    get degraded() {
+      return degraded;
+    },
     async load() {
-      cache = await driver.read();
+      try {
+        cache = await live.read();
+      } catch (err) {
+        degrade(err, 'leitura');
+        cache = await live.read();
+      }
       return cache;
     },
     async saveStatus(status) {
       cache = { ...cache, status };
-      await driver.write({ status });
+      try {
+        await live.write({ status });
+      } catch (err) {
+        degrade(err, 'escrita');
+        await live.write({ status });
+      }
     },
     async saveConfig(config) {
       cache = { ...cache, config };
-      await driver.write({ config });
+      try {
+        await live.write({ config });
+      } catch (err) {
+        degrade(err, 'escrita');
+        await live.write({ config });
+      }
     },
     getMe() {
       try {
@@ -175,10 +233,14 @@ export async function createStore(storageCfg) {
     },
     /** Recebe alterações feitas por outras pessoas (Firestore) ou outras abas. */
     watch(cb) {
-      driver.watch?.((data) => {
-        cache = data;
-        cb(data);
-      });
+      try {
+        live.watch?.((data) => {
+          cache = data;
+          cb(data);
+        });
+      } catch (err) {
+        console.warn('[store] sem atualizacao em tempo real.', err);
+      }
     }
   };
 }

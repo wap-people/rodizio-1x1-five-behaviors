@@ -38,15 +38,15 @@ export const CONFIG = {
      * 'firebase' → Firestore. Painel único e em tempo real para todo mundo.
      *              Continua sendo site estático. Passo a passo no README.
      */
-    driver: 'local',
+    driver: 'firebase',
 
     firebase: {
-      apiKey: '',
-      authDomain: '',
-      projectId: '',
-      storageBucket: '',
-      messagingSenderId: '',
-      appId: '',
+      apiKey: 'AIzaSyDOq-yLwds4-WzQVSQ9oy64FHrgawStE3c',
+      authDomain: 'rodizio-1x1-wap.firebaseapp.com',
+      projectId: 'rodizio-1x1-wap',
+      storageBucket: 'rodizio-1x1-wap.firebasestorage.app',
+      messagingSenderId: '1055371294120',
+      appId: '1:1055371294120:web:b4dc8946c3ef78a01ad99d',
       collection: 'rodizio',
       document: 'estado'
     }
