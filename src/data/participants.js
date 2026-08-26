@@ -8,40 +8,46 @@
  * própria interface (tela Participantes) em vez de apagar a linha aqui.
  *
  * t: 'dir' (Diretoria) | 'head' (Head) | 'ger' (Gerência)
+ *
+ * `e64` é o e-mail em Base64. Isso NÃO é criptografia — é para o repositório
+ * público e o HTML servido não conterem 30 endereços @wap.ind.br em texto
+ * plano, que é o formato que os coletores automáticos de e-mail procuram.
+ * Quem lê o código decodifica em um segundo; proteção de verdade seria fechar
+ * o site atrás de login (veja "Privacidade" no README).
+ *
+ * Para gerar ou conferir um e64:  npm run email -- alguem@wap.ind.br
  */
 export const PARTICIPANTS = [
-  { id: 1,  n: 'Paulo da Nobrega Sanford',         c: 'CEO',                                  e: 'paulo.sanford@wap.ind.br',    t: 'dir'  },
-  { id: 2,  n: 'Bruna Hadad',                      c: 'CFO',                                  e: 'bruna.hadad@wap.ind.br',      t: 'dir'  },
-  { id: 3,  n: 'Eucinei Cabral de Oliveira',       c: 'Diretor Comercial',                    e: 'eucinei.oliveira@wap.ind.br', t: 'dir'  },
-  { id: 4,  n: 'Nestor Mariano Felpi',             c: 'Diretor de Operações',                 e: 'nestor.felpi@wap.ind.br',     t: 'dir'  },
-  { id: 5,  n: 'Deliane Aparecida Correa',         c: 'Diretora de Controladoria',            e: 'deliane.correa@wap.ind.br',   t: 'dir'  },
-  { id: 6,  n: 'Leandro de Azevedo',               c: 'Diretor de Negócios',                  e: 'leandro.azevedo@wap.ind.br',  t: 'dir'  },
-  { id: 7,  n: 'Nelson Montenegro Filho',          c: 'Diretor de Filial',                    e: 'nelson.montenegro@wap.ind.br',t: 'dir'  },
-  { id: 8,  n: 'Marcio Roberto Milleo',            c: 'Head de Controladoria',                e: 'marcio.milleo@wap.ind.br',    t: 'head' },
-  { id: 9,  n: 'Luciano Custodio da Silva',        c: 'Head de Logística',                    e: 'luciano.custodio@wap.ind.br', t: 'head' },
-  { id: 10, n: 'Tiago Campos da Veiga',            c: 'Head de Marketing',                    e: 'tiago.veiga@wap.ind.br',      t: 'head' },
-  { id: 11, n: 'Diego Mafioletti',                 c: 'Head de PMO & BPM',                    e: 'diego.mafioletti@wap.ind.br', t: 'head' },
-  { id: 12, n: 'Hideraldo Luis Simon Junior',      c: 'Head de Tecnologia da Informação',     e: 'hideraldo.junior@wap.ind.br', t: 'head' },
-  { id: 13, n: 'Karine Suelen da Silva Fonseca',   c: 'Gerente Adm de Vendas e Demanda',      e: 'karine.fonseca@wap.ind.br',   t: 'ger'  },
-  { id: 14, n: 'Marlon de Macedo Teixeira',        c: 'Gerente Comercial de Exportação',      e: 'marlon.macedo@wap.ind.br',    t: 'ger'  },
-  { id: 15, n: 'Marcos Antonio Alves de Oliveira', c: 'Gerente de Customer Experience',       e: 'marcos.oliveira@wap.ind.br',  t: 'ger'  },
-  { id: 16, n: 'Beatriz Momesso Paulino',          c: 'Gerente de Dados e IA',                e: 'beatriz.paulino@wap.ind.br',  t: 'ger'  },
-  { id: 17, n: 'Alessandra de Souza Macedo',       c: 'Gerente de Ecommerce',                 e: 'alessandra.macedo@wap.ind.br',t: 'ger'  },
-  { id: 18, n: 'Jean Carlo Cilivi',                c: 'Gerente de Growth Marketing',          e: 'jean.carlo@wap.ind.br',       t: 'ger'  },
-  { id: 19, n: 'Loeyderson de Meira',              c: 'Gerente de Infraestrutura e TI',       e: 'loy.meira@wap.ind.br',        t: 'ger'  },
-  { id: 20, n: 'Aline de Oliveira',                c: 'Gerente de Marketing',                 e: 'aline.oliveira@wap.ind.br',   t: 'ger'  },
-  { id: 21, n: 'Vinicius de Moraes',               c: 'Gerente de Marketing',                 e: 'vinicius.moraes@wap.ind.br',  t: 'ger'  },
-  { id: 22, n: 'Cicero Augusto Brandt',            c: 'Gerente de People',                    e: 'cicero.brandt@wap.ind.br',    t: 'ger'  },
-  // ATENÇÃO: e-mail veio duplicado na planilha de origem (igual ao da Aline de Oliveira).
-  // Corrija abaixo ou pela tela Participantes antes de disparar convites.
-  { id: 23, n: 'Alexandre Garuti Pinheiro',        c: 'Gerente de Suprimentos',               e: 'aline.oliveira@wap.ind.br',   t: 'ger'  },
-  { id: 24, n: 'Silvia Amelia Vilela Acevedo',     c: 'Gerente de Trade Marketing',           e: 'silvia.vilela@wap.ind.br',    t: 'ger'  },
-  { id: 25, n: 'Pablo Roberto de Mello',           c: 'Gerente de Produção',                  e: 'pablo.mello@wap.ind.br',      t: 'ger'  },
-  { id: 26, n: 'Patricia Almeida de Carvalho',     c: 'Gerente Financeiro',                   e: 'patricia.carvalho@wap.ind.br',t: 'ger'  },
-  { id: 27, n: 'Mayra Aparecida Lucio dos Santos', c: 'Gerente de Inovação e Dev de Software',e: 'mayra.santos@wap.ind.br',     t: 'ger'  },
-  { id: 28, n: 'Bruno Balduino',                   c: 'Gerente Jurídico',                     e: 'bruno.balduino@wap.ind.br',   t: 'ger'  },
-  { id: 29, n: 'Felipe Pereira Cortez',            c: 'Gerente Regional de Vendas',           e: 'felipe.cortez@wap.ind.br',    t: 'ger'  },
-  { id: 30, n: 'Thiago Lira Xavier',               c: 'Gerente Regional de Vendas',           e: 'thiago.xavier@wap.ind.br',    t: 'ger'  }
+  { id: 1,  n: 'Paulo da Nobrega Sanford',        c: 'CEO',                                  t: 'dir',   e64: 'cGF1bG8uc2FuZm9yZEB3YXAuaW5kLmJy' },
+  { id: 2,  n: 'Bruna Hadad',                     c: 'CFO',                                  t: 'dir',   e64: 'YnJ1bmEuaGFkYWRAd2FwLmluZC5icg==' },
+  { id: 3,  n: 'Eucinei Cabral de Oliveira',      c: 'Diretor Comercial',                    t: 'dir',   e64: 'ZXVjaW5laS5vbGl2ZWlyYUB3YXAuaW5kLmJy' },
+  { id: 4,  n: 'Nestor Mariano Felpi',            c: 'Diretor de Operações',                 t: 'dir',   e64: 'bmVzdG9yLmZlbHBpQHdhcC5pbmQuYnI=' },
+  { id: 5,  n: 'Deliane Aparecida Correa',        c: 'Diretora de Controladoria',            t: 'dir',   e64: 'ZGVsaWFuZS5jb3JyZWFAd2FwLmluZC5icg==' },
+  { id: 6,  n: 'Leandro de Azevedo',              c: 'Diretor de Negócios',                  t: 'dir',   e64: 'bGVhbmRyby5hemV2ZWRvQHdhcC5pbmQuYnI=' },
+  { id: 7,  n: 'Nelson Montenegro Filho',         c: 'Diretor de Filial',                    t: 'dir',   e64: 'bmVsc29uLm1vbnRlbmVncm9Ad2FwLmluZC5icg==' },
+  { id: 8,  n: 'Marcio Roberto Milleo',           c: 'Head de Controladoria',                t: 'head',  e64: 'bWFyY2lvLm1pbGxlb0B3YXAuaW5kLmJy' },
+  { id: 9,  n: 'Luciano Custodio da Silva',       c: 'Head de Logística',                    t: 'head',  e64: 'bHVjaWFuby5jdXN0b2Rpb0B3YXAuaW5kLmJy' },
+  { id: 10, n: 'Tiago Campos da Veiga',           c: 'Head de Marketing',                    t: 'head',  e64: 'dGlhZ28udmVpZ2FAd2FwLmluZC5icg==' },
+  { id: 11, n: 'Diego Mafioletti',                c: 'Head de PMO & BPM',                    t: 'head',  e64: 'ZGllZ28ubWFmaW9sZXR0aUB3YXAuaW5kLmJy' },
+  { id: 12, n: 'Hideraldo Luis Simon Junior',     c: 'Head de Tecnologia da Informação',     t: 'head',  e64: 'aGlkZXJhbGRvLmp1bmlvckB3YXAuaW5kLmJy' },
+  { id: 13, n: 'Karine Suelen da Silva Fonseca',  c: 'Gerente Adm de Vendas e Demanda',      t: 'ger',   e64: 'a2FyaW5lLmZvbnNlY2FAd2FwLmluZC5icg==' },
+  { id: 14, n: 'Marlon de Macedo Teixeira',       c: 'Gerente Comercial de Exportação',      t: 'ger',   e64: 'bWFybG9uLm1hY2Vkb0B3YXAuaW5kLmJy' },
+  { id: 15, n: 'Marcos Antonio Alves de Oliveira', c: 'Gerente de Customer Experience',       t: 'ger',   e64: 'bWFyY29zLm9saXZlaXJhQHdhcC5pbmQuYnI=' },
+  { id: 16, n: 'Beatriz Momesso Paulino',         c: 'Gerente de Dados e IA',                t: 'ger',   e64: 'YmVhdHJpei5wYXVsaW5vQHdhcC5pbmQuYnI=' },
+  { id: 17, n: 'Alessandra de Souza Macedo',      c: 'Gerente de Ecommerce',                 t: 'ger',   e64: 'YWxlc3NhbmRyYS5tYWNlZG9Ad2FwLmluZC5icg==' },
+  { id: 18, n: 'Jean Carlo Cilivi',               c: 'Gerente de Growth Marketing',          t: 'ger',   e64: 'amVhbi5jYXJsb0B3YXAuaW5kLmJy' },
+  { id: 19, n: 'Loeyderson de Meira',             c: 'Gerente de Infraestrutura e TI',       t: 'ger',   e64: 'bG95Lm1laXJhQHdhcC5pbmQuYnI=' },
+  { id: 20, n: 'Aline de Oliveira',               c: 'Gerente de Marketing',                 t: 'ger',   e64: 'YWxpbmUub2xpdmVpcmFAd2FwLmluZC5icg==' },
+  { id: 21, n: 'Vinicius de Moraes',              c: 'Gerente de Marketing',                 t: 'ger',   e64: 'dmluaWNpdXMubW9yYWVzQHdhcC5pbmQuYnI=' },
+  { id: 22, n: 'Cicero Augusto Brandt',           c: 'Gerente de People',                    t: 'ger',   e64: 'Y2ljZXJvLmJyYW5kdEB3YXAuaW5kLmJy' },
+  { id: 23, n: 'Alexandre Garuti Pinheiro',       c: 'Gerente de Suprimentos',               t: 'ger',   e64: 'YWxleGFuZHJlLnBpbmhlaXJvQHdhcC5pbmQuYnI=' },
+  { id: 24, n: 'Silvia Amelia Vilela Acevedo',    c: 'Gerente de Trade Marketing',           t: 'ger',   e64: 'c2lsdmlhLnZpbGVsYUB3YXAuaW5kLmJy' },
+  { id: 25, n: 'Pablo Roberto de Mello',          c: 'Gerente de Produção',                  t: 'ger',   e64: 'cGFibG8ubWVsbG9Ad2FwLmluZC5icg==' },
+  { id: 26, n: 'Patricia Almeida de Carvalho',    c: 'Gerente Financeiro',                   t: 'ger',   e64: 'cGF0cmljaWEuY2FydmFsaG9Ad2FwLmluZC5icg==' },
+  { id: 27, n: 'Mayra Aparecida Lucio dos Santos', c: 'Gerente de Inovação e Dev de Software', t: 'ger',   e64: 'bWF5cmEuc2FudG9zQHdhcC5pbmQuYnI=' },
+  { id: 28, n: 'Bruno Balduino',                  c: 'Gerente Jurídico',                     t: 'ger',   e64: 'YnJ1bm8uYmFsZHVpbm9Ad2FwLmluZC5icg==' },
+  { id: 29, n: 'Felipe Pereira Cortez',           c: 'Gerente Regional de Vendas',           t: 'ger',   e64: 'ZmVsaXBlLmNvcnRlekB3YXAuaW5kLmJy' },
+  { id: 30, n: 'Thiago Lira Xavier',              c: 'Gerente Regional de Vendas',           t: 'ger',   e64: 'dGhpYWdvLnhhdmllckB3YXAuaW5kLmJy' }
 ];
 
 export const TIERS = {
@@ -51,6 +57,16 @@ export const TIERS = {
 };
 
 export const byId = (id) => PARTICIPANTS.find((p) => p.id === id);
+
+/** Decodifica o `e64`. Ponto único de leitura de e-mail em todo o sistema. */
+export function mail(p) {
+  if (!p?.e64) return '';
+  try {
+    return atob(p.e64);
+  } catch {
+    return '';
+  }
+}
 
 /** Iniciais para o avatar: primeira letra do primeiro e do último nome. */
 export function initials(name) {

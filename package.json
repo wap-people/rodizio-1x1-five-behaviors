@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "npx --yes serve . --listen 5173",
     "test": "node --test tests/*.test.mjs",
+    "email": "node scripts/email.mjs",
     "build:css": "tailwindcss -i src/styles/app.css -o assets/app.css --minify",
     "watch:css": "tailwindcss -i src/styles/app.css -o assets/app.css --watch",
     "build": "npm run build:css",

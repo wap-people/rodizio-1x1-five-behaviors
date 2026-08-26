@@ -5,7 +5,7 @@
  * render() desenha a view atual. Toda ação muda S, persiste e chama render().
  */
 import { CONFIG } from '../config.js';
-import { PARTICIPANTS, byId, short, initials, TIERS } from './data/participants.js';
+import { PARTICIPANTS, byId, mail, short, initials, TIERS } from './data/participants.js';
 import { buildPlan, pairKey, pct } from './core/schedule.js';
 import { createStore } from './core/store.js';
 import {
@@ -26,7 +26,7 @@ const S = {
   storeInfo: { driver: '—', shared: false, degraded: false },
 
   activeIds: () => PARTICIPANTS.filter((p) => !S.cfg.disabled.includes(p.id)).map((p) => p.id),
-  mailOf: (id) => S.cfg.emails[id] || byId(id).e,
+  mailOf: (id) => S.cfg.emails[id] || mail(byId(id)),
   chatLink: (otherId) => teamsChatLink(otherId, { cfg: S.cfg, mailOf: S.mailOf }),
 
   statsAll() {

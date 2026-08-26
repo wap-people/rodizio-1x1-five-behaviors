@@ -13,6 +13,7 @@ npm test             # invariantes do rodízio (obrigatório antes de commitar)
 npm run build:css    # gera assets/app.css a partir de src/styles/app.css
 npm run watch:css    # o mesmo, em modo observação, durante o desenvolvimento
 npm run check        # test + build
+npm run email -- x@y # e-mail <-> Base64 do campo e64
 ```
 
 Sem bundler e sem framework: são ES modules nativos. `npm run dev` existe
@@ -24,7 +25,8 @@ porque `import` não funciona em `file://` — não abra o `index.html` clicando
 index.html            estrutura fixa (header, nav, dialogs). Não gera conteúdo.
 config.js             o que a área de People edita: datas, link do Drive, driver de storage
 src/
-  data/participants.js  os 30 gestores. Fonte da verdade dos ids.
+  data/participants.js  os 30 gestores. Fonte da verdade dos ids. E-mails em `e64` (Base64).
+                        `mail(p)` e o unico ponto de decodificacao.
   core/schedule.js      round-robin, datas, organizadores. Puro, sem DOM. É o que os testes cobrem.
   core/store.js         persistência plugável: local | firebase | memory
   core/integrations.js  deep links do Teams, .ics, .csv
@@ -51,6 +53,13 @@ rode os testes antes de qualquer coisa.
    são gravados por essa chave: mudar o formato **apaga o histórico de todo mundo**.
 5. Ids em `participants.js` são permanentes. Nunca reaproveite o id de quem saiu —
    use "Desativar" na interface, que preserva o histórico.
+6. **Nenhum e-mail em texto plano no repositório.** O campo é `e64` (Base64) e
+   só `mail(p)` decodifica; todo o resto do sistema lê via `S.mailOf(id)`.
+   Não é segurança — é para o código público não virar lista de phishing
+   (o raciocínio inteiro está em "Privacidade" no README). Gere com
+   `npm run email -- fulano@wap.ind.br`.
+7. **E-mails não se repetem.** Endereço duplicado manda o 1x1 de uma pessoa
+   para outra — foi o defeito que veio na planilha de origem. Há teste.
 
 ## Padrão visual (WAP × WAAW by ALOK)
 

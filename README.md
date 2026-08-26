@@ -30,29 +30,62 @@ npm run build:css
 
 ## Publicando no GitHub Pages
 
-1. Crie o repositório e suba o código:
+O repositório é `wap-people/rodizio-1x1-five-behaviors` e o site fica em
+`https://wap-people.github.io/rodizio-1x1-five-behaviors/`.
+
+Primeira vez:
 
 ```bash
-git init
-git add .
-git commit -m "Rodizio 1x1 Five Behaviors"
-git branch -M main
-git remote add origin https://github.com/<org>/<repo>.git
+git remote add origin https://github.com/wap-people/rodizio-1x1-five-behaviors.git
 git push -u origin main
 ```
 
-2. No GitHub: **Settings → Pages → Source: GitHub Actions**.
+Depois, no GitHub: **Settings → Pages → Source: GitHub Actions**.
 
-3. Pronto. Todo push na `main` roda os testes, compila o CSS e publica. Se algum
-   teste do rodízio falhar, o deploy não acontece.
+A partir daí, todo push na `main` roda os testes, compila o CSS e publica. Se
+alguma invariante do rodízio quebrar, o deploy não acontece — o site no ar
+continua sendo a última versão que passou.
 
-O endereço fica em `https://<org>.github.io/<repo>/`.
+O workflow publica um diretório `_site` montado com `index.html`, `config.js`,
+`assets/` e `src/` — só o que o navegador precisa. Publicar a raiz levaria junto
+o `node_modules` instalado pelo `npm ci` e estouraria o limite do artefato.
 
-> **Repositório público expõe nomes e e-mails corporativos.** Se isso for um
-> problema, use repositório privado — mas o GitHub Pages a partir de repositório
-> privado exige plano Enterprise. As alternativas são hospedar na intranet, ou
-> publicar em repositório público sem os dados reais e carregar `participants.js`
-> de outra origem.
+---
+
+## Privacidade dos dados das pessoas
+
+O repositório é público e o site também. Vale saber exatamente o que isso expõe.
+
+**O que está no repositório:** os 30 nomes, os cargos e o nível (Diretoria,
+Head, Gerência). É informação equivalente à que já está no LinkedIn de cada um.
+
+**O que não está:** nenhum e-mail em texto plano. Os endereços ficam em Base64
+no campo `e64` de `src/data/participants.js`, decodificados só na hora de montar
+o `mailto:` ou o link do Teams.
+
+Seja honesto sobre o que isso resolve e o que não resolve:
+
+- **Resolve** a coleta automática. Robôs de harvesting varrem HTML e código
+  procurando o padrão `alguma-coisa@dominio`. Uma busca por `wap.ind.br` no
+  código do repositório ou no fonte da página não devolve nenhum endereço. É o
+  que evita a lista virar insumo de disparo de phishing em massa.
+- **Não resolve** alguém decidido. Quem abrir o `participants.js` e decodificar
+  o Base64 tem os 30 endereços em um minuto. Base64 não é criptografia.
+
+**Proteção de verdade, se as notas dos 1x1 forem sensíveis:** fechar o site
+atrás de login. O caminho é o Firebase Authentication com provedor Microsoft (o
+tenant da WAP já é Entra ID) e a regra do Firestore trocada para
+`if request.auth != null`. Aí nem os e-mails nem as notas ficam acessíveis sem
+uma conta @wap.ind.br. Custa uma tela de login e um registro de app no Entra ID
+— o que exige o TI.
+
+Para gerar o `e64` de alguém que entrar depois:
+
+```bash
+npm run email -- fulano.sobrenome@wap.ind.br
+```
+
+O mesmo comando faz o caminho inverso: passe o `e64` e ele devolve o e-mail.
 
 ---
 
@@ -151,8 +184,10 @@ serve para reservar os horários na agenda; ele não cria a sala.
 
 ## Manutenção
 
-**Alguém entrou na liderança** → adicione em `src/data/participants.js` com um id
-novo (nunca reaproveite id antigo) e faça o push.
+**Alguém entrou na liderança** → gere o e-mail codificado com
+`npm run email -- fulano@wap.ind.br` e adicione a linha em
+`src/data/participants.js` com um id novo (nunca reaproveite id antigo).
+Depois `npm test` e push.
 
 **Alguém saiu** → use *Desativar* na tela Participantes. O histórico é preservado
 e o rodízio se recalcula.
@@ -173,13 +208,14 @@ index.html                 estrutura fixa da página
 config.js                  configuração da implantação
 assets/                    logos + app.css compilado
 src/
-  data/participants.js     os 30 gestores
+  data/participants.js     os 30 gestores (e-mails em Base64)
   core/schedule.js         round-robin, datas, organizadores (puro e testado)
   core/store.js            persistência: local | firebase | memory
   core/integrations.js     Teams, .ics, .csv
   ui/                      ícones, formatação, views
   app.js                   estado, ações, render
   styles/app.css           fonte do CSS
-tests/schedule.test.mjs    invariantes do rodízio
+scripts/email.mjs          e-mail <-> Base64
+tests/schedule.test.mjs    invariantes do rodízio e da lista de pessoas
 .github/workflows/         testes + deploy no Pages
 ```

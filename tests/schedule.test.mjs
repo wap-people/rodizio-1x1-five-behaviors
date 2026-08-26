@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildRounds, assignOrganizers, buildDates, buildPlan, pairKey, addMinutes, pct
 } from '../src/core/schedule.js';
-import { PARTICIPANTS } from '../src/data/participants.js';
+import { PARTICIPANTS, mail } from '../src/data/participants.js';
 
 const ids = (n) => Array.from({ length: n }, (_, i) => i + 1);
 
@@ -128,8 +128,20 @@ test('participantes: ids únicos e campos obrigatórios', () => {
   for (const p of PARTICIPANTS) {
     assert.ok(!seen.has(p.id), `id duplicado: ${p.id}`);
     seen.add(p.id);
-    assert.ok(p.n && p.c && p.e, `campos faltando em ${p.id}`);
-    assert.match(p.e, /^[^@\s]+@[^@\s]+\.[^@\s]+$/, `e-mail inválido em ${p.n}`);
+    assert.ok(p.n && p.c && p.e64, `campos faltando em ${p.id}`);
     assert.ok(['dir', 'head', 'ger'].includes(p.t), `nível inválido em ${p.n}`);
+  }
+});
+
+// O e-mail vira convite do Teams e ATTENDEE do .ics. Um endereco repetido
+// significa uma pessoa recebendo o 1x1 de outra — foi exatamente o defeito
+// que veio na planilha de origem (Alexandre com o e-mail da Aline).
+test('participantes: e-mails decodificam, sao validos e nao se repetem', () => {
+  const seen = new Map();
+  for (const p of PARTICIPANTS) {
+    const e = mail(p);
+    assert.match(e, /^[^@\s]+@[^@\s]+\.[^@\s]+$/, `e-mail inválido em ${p.n}`);
+    assert.ok(!seen.has(e), `e-mail duplicado entre ${seen.get(e)} e ${p.n}: ${e}`);
+    seen.set(e, p.n);
   }
 });
