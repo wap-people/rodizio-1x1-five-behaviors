@@ -40,7 +40,9 @@ git remote add origin https://github.com/wap-people/rodizio-1x1-five-behaviors.g
 git push -u origin main
 ```
 
-Depois, no GitHub: **Settings → Pages → Source: GitHub Actions**.
+O próprio workflow liga o Pages no primeiro deploy (`enablement: true`), então
+não é preciso mexer em Settings. Se por algum motivo falhar ali, o caminho
+manual é **Settings → Pages → Source: GitHub Actions**.
 
 A partir daí, todo push na `main` roda os testes, compila o CSS e publica. Se
 alguma invariante do rodízio quebrar, o deploy não acontece — o site no ar
