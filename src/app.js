@@ -10,11 +10,11 @@ import { buildPlan, pairKey, pct } from './core/schedule.js';
 import { createStore } from './core/store.js';
 import { createAuth, isCorporate } from './core/auth.js';
 import {
-  teamsMeetingLink, teamsChatLink, buildICS, buildCSV, download
+  teamsMeetingLink, teamsChatLink, buildICS, buildCSV, download, reportLink
 } from './core/integrations.js';
 import { paintIcons } from './ui/icons.js';
 import { fmtDate, fmtLong, todayISO, esc } from './ui/format.js';
-import { viewMe, viewRounds, viewMatrix, viewPeople, viewConfig, whoList } from './ui/views.js';
+import { viewDash, viewMe, viewRounds, viewMatrix, viewPeople, viewConfig, whoList } from './ui/views.js';
 
 /* ─────────────── estado ─────────────── */
 const S = {
@@ -34,7 +34,9 @@ const S = {
 
   activeIds: () => PARTICIPANTS.filter((p) => !S.cfg.disabled.includes(p.id)).map((p) => p.id),
   mailOf: (id) => S.cfg.emails[id] || mail(byId(id)),
-  chatLink: (otherId) => teamsChatLink(otherId, { cfg: S.cfg, mailOf: S.mailOf }),
+  chatLink: (otherId) => teamsChatLink(otherId, { cfg: S.cfg, mailOf: S.mailOf, me: S.me }),
+  /** PDF do par, não a pasta raiz. Cai para a pasta só se o par não tiver relatório. */
+  reportOf: (otherId) => reportLink(S.me, otherId, S.cfg),
 
   statsAll() {
     const total = Object.keys(S.plan).length;
@@ -46,20 +48,21 @@ const S = {
       if (st?.st === 'sched') sched++;
       if (S.plan[k].date < today) late++;
     }
-    return { total, done, sched, late, pending: total - done };
+    return { total, done, sched, late, pending: total - done, pct: pct(done, total) };
   },
 
   statsOf(id) {
-    let done = 0, total = 0, late = 0;
+    let done = 0, total = 0, late = 0, sched = 0;
     const today = todayISO();
     for (const k of Object.keys(S.plan)) {
       const [a, b] = k.split('-').map(Number);
       if (a !== id && b !== id) continue;
       total++;
-      if (S.status[k]?.st === 'done') done++;
-      else if (S.plan[k].date < today) late++;
+      if (S.status[k]?.st === 'done') { done++; continue; }
+      if (S.status[k]?.st === 'sched') sched++;
+      if (S.plan[k].date < today) late++;
     }
-    return { done, total, late, pct: pct(done, total) };
+    return { done, total, late, sched, pct: pct(done, total) };
   }
 };
 
@@ -77,13 +80,23 @@ function rebuild() {
 
 /* ─────────────── feedback ─────────────── */
 let toastTimer;
-function toast(msg, icon = 'check') {
+/** @param {{label:string, run:Function}} [action] botão de desfazer dentro do toast */
+function toast(msg, icon = 'check', action) {
   const el = document.getElementById('toast');
   el.innerHTML = `<span data-ic="${icon}" data-sz="16" style="color:var(--ok)"></span>${esc(msg)}`;
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-sm';
+    b.style.marginLeft = '10px';
+    b.textContent = action.label;
+    b.onclick = () => { el.classList.remove('on'); action.run(); };
+    el.appendChild(b);
+  }
   paintIcons(el);
   el.classList.add('on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('on'), 3400);
+  // Com botão de desfazer a pessoa precisa de tempo para ler e decidir.
+  toastTimer = setTimeout(() => el.classList.remove('on'), action ? 8000 : 3400);
 }
 
 const copy = (text, msg) =>
@@ -92,7 +105,7 @@ const copy = (text, msg) =>
     .catch(() => toast('Não consegui copiar.', 'alert'));
 
 /* ─────────────── render ─────────────── */
-const VIEWS = { me: viewMe, rounds: viewRounds, matrix: viewMatrix, people: viewPeople, config: viewConfig };
+const VIEWS = { dash: viewDash, me: viewMe, rounds: viewRounds, matrix: viewMatrix, people: viewPeople, config: viewConfig };
 
 function render() {
   const main = document.getElementById('main');
@@ -144,6 +157,39 @@ const App = {
     else S.status[k] = { st, dt: dt || '', nt: nt || '', by: S.me ? short(byId(S.me).n) : '' };
     await store.saveStatus(S.status);
     render();
+  },
+
+  /**
+   * Desfaz o agendamento e devolve o par para pendente, guardando quantas vezes
+   * isso já aconteceu. O contador importa: par que remarca três vezes é sinal
+   * de agenda travada, não de esquecimento.
+   *
+   * O convite no Teams e o bloqueio no calendário NÃO são desfeitos aqui — o
+   * sistema não tem acesso à agenda de ninguém. Por isso o toast avisa.
+   */
+  async cancelSched(a, b) {
+    const k = pairKey(a, b);
+    const antes = S.status[k];
+    if (antes?.st !== 'sched') return toast('Este encontro não está agendado.', 'alert');
+
+    S.status[k] = {
+      st: 'pend',
+      nt: antes.nt || '',
+      by: S.me ? short(byId(S.me).n) : '',
+      rm: (antes.rm || 0) + 1,
+      rmAt: todayISO()
+    };
+    await store.saveStatus(S.status);
+    render();
+    toast('Agendamento cancelado. Cancele também o convite no Teams.', 'calx', {
+      label: 'Desfazer',
+      run: async () => {
+        S.status[k] = antes;
+        await store.saveStatus(S.status);
+        render();
+        toast('Agendamento restaurado.', 'undo');
+      }
+    });
   },
 
   openTeams(a, b) {

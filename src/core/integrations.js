@@ -12,7 +12,27 @@
  * https://learn.microsoft.com/microsoftteams/platform/concepts/build-and-test/deep-link-workflow
  */
 import { byId, short } from '../data/participants.js';
+import { REPORTS } from '../data/reports.js';
 import { pairKey, addMinutes } from './schedule.js';
+
+/**
+ * Link do relatório comparativo do par — o PDF, não a pasta.
+ *
+ * Preferimos a orientação de quem está olhando (`me`), porque o relatório é
+ * escrito da perspectiva do dono da pasta. Quando ela não existe, cai para a
+ * inversa: é a mesma comparação vista do outro lado, e melhor que jogar a
+ * pessoa na raiz do Drive para procurar entre 32 pastas.
+ *
+ * Sem nenhuma das duas, devolve a pasta raiz de `cfg.driveUrl` como último
+ * recurso — nunca `null`, para o botão não sumir da interface.
+ */
+export function reportLink(me, other, cfg) {
+  const id = REPORTS[me]?.[other] || REPORTS[other]?.[me];
+  return id ? `https://drive.google.com/file/d/${id}/view` : cfg.driveUrl;
+}
+
+/** O par tem relatório próprio, ou o link é só a pasta raiz? */
+export const hasReport = (a, b) => Boolean(REPORTS[a]?.[b] || REPORTS[b]?.[a]);
 
 const TEAMS_MEETING = 'https://teams.microsoft.com/l/meeting/new';
 const TEAMS_CHAT = 'https://teams.microsoft.com/l/chat/0/0';
@@ -28,7 +48,7 @@ export const subject = (a, b) =>
 export function agenda(a, b, cfg) {
   return (
     `Encontro 1x1 da dinamica The Five Behaviors (Long Vision).\n\n` +
-    `Antes da conversa, abra o relatorio comparativo do par em:\n${cfg.driveUrl}\n\n` +
+    `Antes da conversa, abra o relatorio comparativo de voces dois:\n${reportLink(a, b, cfg)}\n\n` +
     `Roteiro sugerido (${cfg.duration} min):\n` +
     `1. Confianca - onde cada um se sente mais e menos a vontade para se expor\n` +
     `2. Conflito - como cada perfil reage ao debate de ideias\n` +
@@ -50,12 +70,12 @@ export function teamsMeetingLink(a, b, { date, cfg, mailOf }) {
   return `${TEAMS_MEETING}?${p.toString()}`;
 }
 
-export function teamsChatLink(otherId, { cfg, mailOf }) {
+export function teamsChatLink(otherId, { cfg, mailOf, me }) {
   const p = new URLSearchParams();
   p.set('users', mailOf(otherId));
   p.set(
     'message',
-    `Oi! Vamos marcar nosso 1x1 do Five Behaviors? O relatorio comparativo esta em ${cfg.driveUrl}`
+    `Oi! Vamos marcar nosso 1x1 do Five Behaviors? Nosso relatorio comparativo esta em ${reportLink(me, otherId, cfg)}`
   );
   return `${TEAMS_CHAT}?${p.toString()}`;
 }

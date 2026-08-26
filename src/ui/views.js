@@ -38,6 +38,145 @@ function statusTag(S, key) {
   return `<span class="tag t-pend"><span data-ic="clock" data-sz="12"></span>Pendente</span>`;
 }
 
+/**
+ * Anel de progresso em SVG inline. Não é enfeite: o número sozinho ("12/29")
+ * não diz se está perto ou longe do fim, e a barra fina some no meio da tela.
+ */
+function ring(percent, size = 58, color = 'var(--amber)') {
+  const r = (size - 8) / 2;
+  const c = 2 * Math.PI * r;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true" style="flex:none">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#232327" stroke-width="6"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - percent / 100)}"
+      transform="rotate(-90 ${size / 2} ${size / 2})"/>
+    <text x="50%" y="50%" text-anchor="middle" dy=".36em" fill="var(--text)"
+      font-size="${Math.round(size * 0.28)}" font-weight="800">${percent}</text>
+  </svg>`;
+}
+
+/** Barra empilhada: concluído + agendado sobre o total. */
+function stackedBar(done, sched, total, height = 8) {
+  const p = (n) => (total ? (n / total) * 100 : 0);
+  return `<div class="bar" style="display:flex;height:${height}px">
+    <i style="width:${p(done)}%;background:var(--ok)"></i>
+    <i style="width:${p(sched)}%;background:var(--warn);border-radius:0"></i>
+  </div>`;
+}
+
+const legend = (done, sched, pend) => `
+  <div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11.5px]" style="color:var(--muted)">
+    <span class="inline-flex items-center gap-1.5"><i style="width:8px;height:8px;border-radius:2px;background:var(--ok);display:inline-block"></i>Concluído ${done}</span>
+    <span class="inline-flex items-center gap-1.5"><i style="width:8px;height:8px;border-radius:2px;background:var(--warn);display:inline-block"></i>Agendado ${sched}</span>
+    <span class="inline-flex items-center gap-1.5"><i style="width:8px;height:8px;border-radius:2px;background:#232327;display:inline-block"></i>Pendente ${pend}</span>
+  </div>`;
+
+/* ══════════════════════ VISÃO GERAL ══════════════════════ */
+export function viewDash(S) {
+  if (!S.rounds.length) return emptyCard('Reative pelo menos dois participantes para o rodízio existir.');
+
+  const g = S.statsAll();
+  const today = todayISO();
+  const pend = g.total - g.done - g.sched;
+  const roundNow = Math.min(S.dates.filter((d) => d < today).length + 1, S.rounds.length);
+  const mine = S.me ? S.statsOf(S.me) : null;
+
+  const upcoming = Object.keys(S.plan)
+    .filter((k) => S.status[k]?.st !== 'done' && S.plan[k].date >= today)
+    .sort((x, y) => S.plan[x].date.localeCompare(S.plan[y].date) || S.plan[x].round - S.plan[y].round)
+    .slice(0, 7);
+
+  const rank = S.activeIds()
+    .map((id) => ({ p: byId(id), st: S.statsOf(id) }))
+    .sort((x, y) => y.st.pct - x.st.pct || x.p.n.localeCompare(y.p.n));
+
+  return `
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+    <div>
+      <div class="text-[10.5px] font-bold uppercase tracking-[.09em]" style="color:var(--subtle)">The Five Behaviors · Long Vision</div>
+      <h1 class="text-[20px] font-extrabold leading-tight mt-0.5">Visão geral da dinâmica</h1>
+      <p class="text-[13px] mt-1" style="color:var(--muted)">
+        ${S.activeIds().length} participantes · ${g.total} encontros · ${S.rounds.length} rodadas de
+        ${Math.floor(S.activeIds().length / 2)} conversas simultâneas. Cada pessoa conversa com todas as outras exatamente uma vez.
+      </p>
+    </div>
+    <button class="btn" onclick="App.downloadAllICS()"><span data-ic="download" data-sz="15"></span>Agenda completa (.ics)</button>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+    ${kpi('Encontros no total', g.total, `${S.activeIds().length} pessoas · ${S.activeIds().length - 1} por pessoa`)}
+    ${kpi('Concluídos', g.done, `${g.pct}% da jornada`, 'var(--ok)')}
+    ${kpi('Agendados', g.sched, 'com data confirmada', 'var(--warn)')}
+    ${kpi('Atrasados', g.late, g.late ? 'rodadas já vencidas' : 'nenhum atrasado', g.late ? 'var(--danger)' : 'var(--muted)')}
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-3">
+    <div class="card p-5 lg:col-span-2 reveal">
+      <div class="flex items-center gap-4">
+        ${ring(g.pct, 64)}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline justify-between gap-3 flex-wrap">
+            <span class="text-[13px] font-bold">Progresso geral</span>
+            <span class="text-[12px]" style="color:var(--muted)">Rodada em curso:
+              <b class="mono" style="color:var(--amber)">${roundNow}</b> de ${S.rounds.length}</span>
+          </div>
+          <div class="mt-2">${stackedBar(g.done, g.sched, g.total)}</div>
+          ${legend(g.done, g.sched, pend)}
+        </div>
+      </div>
+
+      ${mine ? `
+      <div class="mt-4 pt-4 border-t flex items-center gap-4" style="border-color:var(--border)">
+        ${ring(mine.pct, 58, 'var(--lime)')}
+        <div class="flex-1 min-w-0">
+          <div class="text-[13px] font-bold">Você — ${esc(short(byId(S.me).n))}</div>
+          <div class="mt-2">${stackedBar(mine.done, mine.sched || 0, mine.total)}</div>
+          <div class="text-[11.5px] mt-2" style="color:var(--muted)">
+            ${mine.done} de ${mine.total} · <b style="color:${mine.late ? 'var(--danger)' : 'var(--ok)'}">${mine.late} atrasado${mine.late === 1 ? '' : 's'}</b>
+          </div>
+        </div>
+      </div>` : `
+      <div class="mt-4 pt-4 border-t text-[12.5px]" style="border-color:var(--border);color:var(--muted)">
+        Identifique-se no topo para ver também o seu progresso pessoal aqui.
+      </div>`}
+
+      <div class="mt-5 pt-4 border-t" style="border-color:var(--border)">
+        <div class="text-[10.5px] font-bold uppercase tracking-[.09em] mb-2" style="color:var(--subtle)">Próximos encontros</div>
+        ${upcoming.length ? upcoming.map((k) => {
+          const [a, b] = k.split('-').map(Number);
+          const pl = S.plan[k];
+          return `<div class="row" style="grid-template-columns:58px 1fr auto">
+            <div class="mono text-[12px]" style="color:var(--muted)">${fmtShort(pl.date)}
+              <div class="text-[10px] uppercase" style="color:var(--subtle)">${WEEKDAYS[new Date(pl.date + 'T12:00:00').getDay()]}</div>
+            </div>
+            <div class="min-w-0">
+              <div class="text-[13px] font-bold truncate">${esc(short(byId(a).n))}
+                <span style="color:var(--subtle);font-weight:400">×</span> ${esc(short(byId(b).n))}</div>
+              <div class="text-[11.5px]" style="color:var(--muted)">Rodada ${pl.round} · ${S.cfg.time}</div>
+            </div>
+            ${statusTag(S, k)}
+          </div>`;
+        }).join('') : `<div class="text-[13px] py-4 text-center" style="color:var(--muted)">Nenhum encontro futuro previsto.</div>`}
+      </div>
+    </div>
+
+    <div class="card p-5 reveal">
+      <div class="text-[10.5px] font-bold uppercase tracking-[.09em] mb-3" style="color:var(--subtle)">Ranking de conclusão</div>
+      <div style="max-height:560px;overflow:auto">
+        ${rank.map(({ p, st }) => `
+          <button class="row w-full text-left" style="grid-template-columns:34px 1fr 46px" onclick="App.pickMe(${p.id})" title="Ver a agenda de ${esc(p.n)}">
+            ${av(p)}
+            <div class="min-w-0">
+              <div class="text-[12.5px] font-bold truncate">${esc(short(p.n))}</div>
+              <div class="mt-1">${stackedBar(st.done, st.sched || 0, st.total, 5)}</div>
+            </div>
+            <div class="mono text-[12px] text-right" style="color:var(--muted)">${st.done}/${st.total}</div>
+          </button>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
 /* ══════════════════════ MEUS 1x1 ══════════════════════ */
 export function viewMe(S) {
   if (!S.me) {
@@ -144,6 +283,7 @@ export function viewMe(S) {
             <span class="font-bold text-[14px] truncate ${done ? 'opacity-60' : ''}">${esc(p.n)}</span>
             ${statusTag(S, it.k)}
             ${it.isOrg ? '<span class="tag t-neutral">Você convida</span>' : ''}
+            ${it.s?.rm ? `<span class="tag t-late" title="Já foi cancelado e precisa ser remarcado"><span data-ic="undo" data-sz="12"></span>Remarcado ${it.s.rm}×</span>` : ''}
           </div>
           <div class="text-[12px] mt-0.5 truncate" style="color:var(--muted)">
             ${esc(p.c)} · <span class="mono">Rodada ${it.pl.round} — ${fmtLong(it.pl.date)}, ${S.cfg.time}</span>
@@ -151,9 +291,13 @@ export function viewMe(S) {
           ${it.s?.nt ? `<div class="text-[12px] mt-1 pl-2 border-l-2" style="border-color:var(--border);color:var(--subtle)">${esc(it.s.nt)}</div>` : ''}
         </div>
         <div class="flex gap-1.5 items-center">
+          <a class="btn btn-sm btn-ghost" href="${S.reportOf(it.other)}" target="_blank" rel="noopener"
+             title="Relatório comparativo de vocês dois" aria-label="Abrir o relatório comparativo com ${esc(p.n)}"><span data-ic="filetext" data-sz="15"></span></a>
           <a class="btn btn-sm btn-ghost" href="mailto:${esc(S.mailOf(it.other))}" title="E-mail" aria-label="Enviar e-mail"><span data-ic="mail" data-sz="15"></span></a>
           <a class="btn btn-sm btn-ghost" href="${S.chatLink(it.other)}" target="_blank" rel="noopener" title="Chat no Teams" aria-label="Abrir chat no Teams"><span data-ic="chat" data-sz="15"></span></a>
-          <button class="btn btn-sm" onclick="App.openTeams(${S.me},${it.other})" title="Abrir agendamento no Teams"><span data-ic="video" data-sz="14"></span><span class="hidden md:inline">Teams</span></button>
+          ${it.s?.st === 'sched'
+            ? `<button class="btn btn-sm" onclick="App.cancelSched(${S.me},${it.other})" title="Cancelar o agendamento e voltar para pendente"><span data-ic="calx" data-sz="14"></span><span class="hidden md:inline">Cancelar</span></button>`
+            : `<button class="btn btn-sm" onclick="App.openTeams(${S.me},${it.other})" title="Abrir agendamento no Teams"><span data-ic="video" data-sz="14"></span><span class="hidden md:inline">Teams</span></button>`}
           <button class="btn btn-sm ${done ? '' : 'btn-primary'}" onclick="App.openDone(${S.me},${it.other})"><span data-ic="check" data-sz="14"></span><span class="hidden md:inline">${done ? 'Editar' : 'Concluir'}</span></button>
         </div>
       </div>`;
