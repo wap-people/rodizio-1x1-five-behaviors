@@ -90,7 +90,10 @@
       <div><label class="lbl" for="doneWho">Registrado por</label><input id="doneWho" class="inp" readonly></div>
     </div>
     <div class="mt-3">
-      <label class="lbl" for="doneNote">Nota (opcional — visível a todos)</label>
+      <!-- "a todos" seria mentira com a regra aberta do Firestore: a nota
+           alcança qualquer pessoa que tenha o link, não só os 30 gestores.
+           Quem vai escrever ali merece saber disso antes de escrever. -->
+      <label class="lbl" for="doneNote">Nota (opcional — visível a quem tem o link)</label>
       <textarea id="doneNote" class="inp" rows="2" placeholder="Principal acordo, ponto de atenção…"></textarea>
     </div>
     <div class="flex justify-between gap-2 mt-5">

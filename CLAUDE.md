@@ -74,9 +74,14 @@ rode os testes antes de qualquer coisa.
 9. **Escrita que falha nao pode falhar calada.** Se `saveStatus`/`saveConfig`
    engolir o erro, o gestor clica em Registrar 1x1, nada acontece e o registro
    some. O store cai para local, avisa por toast e preserva o dado.
-10. **`email_verified` na regra do Firestore nao e enfeite.** O Firebase obriga
+10. **`requireLogin` em config.js e a regra do Firestore andam juntos.** Sao
+   as duas pontas do mesmo acordo: login com regra aberta e atrito sem
+   protecao; regra fechada sem login trava todo mundo na primeira leitura.
+   Mexeu em um, mexa no outro. Hoje: `false` + regra aberta, por decisao da
+   area de People.
+11. **`email_verified` na regra fechada nao e enfeite.** O Firebase obriga
    o provedor E-mail/senha ligado junto com o link; sem essa clausula qualquer
-   um se cadastra com senha num @wap.ind.br inventado e le as notas dos 1x1.
+   um se cadastra com senha num endereco corporativo inventado e le as notas.
 
 ## Padrão visual (WAP × WAAW by ALOK)
 

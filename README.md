@@ -109,7 +109,35 @@ encontro) e algumas centenas de leituras por dia.
 
 ### Acesso
 
-O site é público, mas os dados não. A regra do Firestore:
+Quem controla o acesso são a regra do Firestore e o `requireLogin` em
+`config.js`. **São as duas pontas do mesmo acordo: trocar só uma quebra o
+sistema** — login com regra aberta é atrito sem proteção; regra fechada sem
+login trava todo mundo na primeira leitura.
+
+**Configuração atual — `requireLogin: false`, regra aberta.** Escolha da área
+de People em 26/08/2026, priorizando o uso: com 30 gestores, exigir abrir o
+e-mail a cada dispositivo novo vira fila de suporte.
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rodizio/estado {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+Só o documento `rodizio/estado` é alcançável; o resto do banco fica trancado.
+Mas seja honesto sobre o que essa regra significa: **qualquer pessoa que
+chegue ao `projectId` — que está no `config.js` deste repositório público —
+lê e edita as notas dos 1x1.** Não é "difícil de achar"; é aberto para quem
+procurar. Por isso o campo de nota avisa "visível a quem tem o link" em vez de
+"visível a todos".
+
+**Se o conteúdo das notas mudar de natureza**, o caminho de volta já está
+pronto e testado: vire `requireLogin` para `true` e publique a regra fechada.
 
 ```
 rules_version = '2';
@@ -124,20 +152,15 @@ service cloud.firestore {
 }
 ```
 
-Só o documento `rodizio/estado` é alcançável; o resto do banco fica trancado.
+O login (`src/core/auth.js`) é sem senha, por link no e-mail @wap.ind.br.
+Login com a Microsoft seria melhor — o tenant já é Entra ID — mas exige
+registro de app no Azure com o TI.
 
-O login é **sem senha, por link no e-mail** (`src/core/auth.js`): a pessoa
-informa o endereço @wap.ind.br, recebe um link e entra ao clicar. Login com a
-Microsoft seria melhor — o tenant já é Entra ID — mas exige registro de app no
-Azure com o TI; o link por e-mail dá a mesma garantia (só entra quem tem a
-caixa) sem depender de ninguém.
-
-**Por que `email_verified` está na regra.** O Firebase não deixa ativar o link
-de e-mail sem ativar também o provedor E-mail/senha. Sem essa cláusula,
-qualquer pessoa poderia se cadastrar com senha usando um endereço @wap.ind.br
-inventado e passar na regra — cadastro por senha nasce com
-`email_verified: false`, e o link por e-mail nasce com `true`. O app nunca
-oferece cadastro por senha, e a regra fecha a porta dos fundos.
+**`email_verified` não é enfeite nessa regra.** O Firebase não deixa ativar o
+link de e-mail sem ativar junto o provedor E-mail/senha. Sem a cláusula,
+qualquer pessoa se cadastra com senha num endereço @wap.ind.br inventado e
+passa — cadastro por senha nasce com `email_verified: false`, o link nasce com
+`true`.
 
 **Ao publicar em um domínio novo**, cadastre-o em Authentication → Settings →
 Domínios autorizados, senão o envio do link falha com
@@ -145,8 +168,7 @@ Domínios autorizados, senão o envio do link falha com
 `localhost`.
 
 Se o Firestore ou a CDN do Google estiverem inacessíveis, o app avisa e cai
-para modo local em vez de travar — inclusive o login é pulado, porque prender
-alguém numa tela que não vai funcionar é pior que não compartilhar.
+para modo local em vez de travar.
 
 ---
 

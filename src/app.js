@@ -478,7 +478,10 @@ async function boot() {
   const sc = CONFIG.storage;
   const wantsFirebase = sc?.driver === 'firebase' && sc.firebase?.projectId;
 
-  if (!wantsFirebase) return start();
+  // `requireLogin` tem que espelhar a regra do Firestore: exigir login aqui
+  // com a regra aberta é atrito sem proteção; não exigir com a regra fechada
+  // trava todo mundo na primeira leitura.
+  if (!wantsFirebase || !sc.requireLogin) return start();
 
   try {
     auth = await createAuth(sc.firebase);

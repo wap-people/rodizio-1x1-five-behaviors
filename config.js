@@ -40,6 +40,26 @@ export const CONFIG = {
      */
     driver: 'firebase',
 
+    /**
+     * Exigir login (link sem senha no e-mail @wap.ind.br) antes de abrir o app.
+     *
+     * Precisa andar junto com a regra do Firestore — as duas pontas do mesmo
+     * acordo, e trocar só uma quebra o sistema:
+     *
+     *   false → regra `allow read, write: if true`
+     *           Sem atrito: abriu o link, está dentro. Em troca, qualquer
+     *           pessoa que chegue ao projectId (que está logo abaixo, neste
+     *           arquivo público) lê e edita as notas dos 1x1.
+     *
+     *   true  → regra exigindo `request.auth != null`, `email_verified` e
+     *           domínio @wap.ind.br. O README traz o bloco pronto.
+     *
+     * Escolha da área de People em 26/08/2026: `false`, priorizando o uso.
+     * Se o conteúdo das notas mudar de natureza, vire para `true` e publique
+     * a regra fechada — o código do login continua aqui, funcionando.
+     */
+    requireLogin: false,
+
     firebase: {
       apiKey: 'AIzaSyDOq-yLwds4-WzQVSQ9oy64FHrgawStE3c',
       authDomain: 'rodizio-1x1-wap.firebaseapp.com',
