@@ -44,7 +44,10 @@ jobs:
           cp -r assets src _site/
           touch _site/.nojekyll
 
+      # enablement liga o Pages no primeiro deploy, sem passar em Settings.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
