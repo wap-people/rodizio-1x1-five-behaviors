@@ -58,14 +58,16 @@ export function agenda(a, b, cfg) {
   );
 }
 
-export function teamsMeetingLink(a, b, { date, cfg, mailOf }) {
+export function teamsMeetingLink(a, b, { date, time, cfg, mailOf }) {
+  // O horario vem da rodada: com dois turnos por dia, cfg nao tem mais um so.
+  const hora = time || cfg.times?.[0] || '09:00';
   const p = new URLSearchParams();
   p.set('subject', subject(a, b));
   p.set('attendees', [mailOf(a), mailOf(b)].join(','));
   p.set('content', agenda(a, b, cfg));
   if (date) {
-    p.set('startTime', `${date}T${cfg.time}:00${TZ_OFFSET}`);
-    p.set('endTime', `${date}T${addMinutes(cfg.time, cfg.duration)}:00${TZ_OFFSET}`);
+    p.set('startTime', `${date}T${hora}:00${TZ_OFFSET}`);
+    p.set('endTime', `${date}T${addMinutes(hora, cfg.duration)}:00${TZ_OFFSET}`);
   }
   return `${TEAMS_MEETING}?${p.toString()}`;
 }
@@ -104,14 +106,15 @@ function stamp(date, time, plusMin) {
  */
 export function buildICS(items, { cfg, mailOf, organizers }) {
   const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const events = items.map(({ a, b, date }) => {
+  const events = items.map(({ a, b, date, time }) => {
     const org = byId(organizers[pairKey(a, b)] ?? a);
+    const hora = time || cfg.times?.[0] || '09:00';
     return [
       'BEGIN:VEVENT',
       `UID:rodizio1x1-${pairKey(a, b)}-${date}@wap.ind.br`,
       `DTSTAMP:${now}`,
-      `DTSTART:${stamp(date, cfg.time, 0)}`,
-      `DTEND:${stamp(date, cfg.time, cfg.duration)}`,
+      `DTSTART:${stamp(date, hora, 0)}`,
+      `DTEND:${stamp(date, hora, cfg.duration)}`,
       `SUMMARY:${escapeICS(subject(a, b))}`,
       `DESCRIPTION:${escapeICS(agenda(a, b, cfg))}`,
       'LOCATION:Microsoft Teams',
@@ -142,7 +145,7 @@ export function buildICS(items, { cfg, mailOf, organizers }) {
 
 export function buildCSV({ plan, status, organizers, mailOf, fmtDate }) {
   const rows = [
-    ['Rodada','Data prevista','Pessoa A','Cargo A','E-mail A','Pessoa B','Cargo B','E-mail B','Organizador','Status','Data realizada','Nota']
+    ['Rodada','Data prevista','Horario','Pessoa A','Cargo A','E-mail A','Pessoa B','Cargo B','E-mail B','Organizador','Status','Data realizada','Nota']
   ];
   Object.keys(plan)
     .sort((x, y) => plan[x].round - plan[y].round)
@@ -152,6 +155,7 @@ export function buildCSV({ plan, status, organizers, mailOf, fmtDate }) {
       rows.push([
         plan[k].round,
         fmtDate(plan[k].date),
+        plan[k].time || '',
         byId(a).n, byId(a).c, mailOf(a),
         byId(b).n, byId(b).c, mailOf(b),
         short(byId(organizers[k]).n),

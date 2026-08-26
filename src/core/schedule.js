@@ -86,20 +86,47 @@ export function buildDates(count, start, weekdays) {
 }
 
 /**
- * Monta o plano completo do programa.
- * @returns {{rounds, organizers, dates, plan}} plan: pairKey → {round, date}
+ * Horários de uma rodada: cada dia útil escolhido recebe `times.length`
+ * rodadas, na ordem dos horários.
+ *
+ * Existe porque uma rodada por dia limita o programa: 29 rodadas em dois dias
+ * por semana levam três meses e meio. Com dois horários por dia o mesmo
+ * rodízio cabe em três semanas — cada pessoa continua com um encontro por
+ * rodada, então a invariante 2 não muda; o que muda é ter dois encontros no
+ * mesmo dia, em horários diferentes.
+ *
+ * @param {number} count quantas rodadas
+ * @param {string[]} times ['09:00','14:00'] — um ou mais por dia
+ * @returns {Array<{date:string, time:string}>}
  */
-export function buildPlan(activeIds, { start, weekdays }) {
+export function buildSlots(count, start, weekdays, times) {
+  const ts = times && times.length ? times.slice() : ['14:00'];
+  const dates = buildDates(Math.ceil(count / ts.length), start, weekdays);
+  const out = [];
+  for (const date of dates) {
+    for (const time of ts) {
+      if (out.length < count) out.push({ date, time });
+    }
+  }
+  return out;
+}
+
+/**
+ * Monta o plano completo do programa.
+ * @returns {{rounds, organizers, dates, slots, plan}} plan: pairKey → {round, date, time}
+ */
+export function buildPlan(activeIds, { start, weekdays, times }) {
   const rounds = buildRounds(activeIds);
-  if (!rounds.length) return { rounds: [], organizers: {}, dates: [], plan: {} };
+  if (!rounds.length) return { rounds: [], organizers: {}, dates: [], slots: [], plan: {} };
 
   const organizers = assignOrganizers(rounds);
-  const dates = buildDates(rounds.length, start, weekdays);
+  const slots = buildSlots(rounds.length, start, weekdays, times);
   const plan = {};
   rounds.forEach((pairs, i) => {
-    for (const [a, b] of pairs) plan[pairKey(a, b)] = { round: i + 1, date: dates[i] };
+    const s = slots[i] || {};
+    for (const [a, b] of pairs) plan[pairKey(a, b)] = { round: i + 1, date: s.date, time: s.time };
   });
-  return { rounds, organizers, dates, plan };
+  return { rounds, organizers, dates: slots.map((s) => s.date), slots, plan };
 }
 
 /** Soma minutos a um "HH:MM", com virada de dia. */

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildRounds, assignOrganizers, buildDates, buildPlan, pairKey, addMinutes, pct
+  buildRounds, assignOrganizers, buildDates, buildSlots, buildPlan, pairKey, addMinutes, pct
 } from '../src/core/schedule.js';
 import { PARTICIPANTS, mail } from '../src/data/participants.js';
 
@@ -143,5 +143,65 @@ test('participantes: e-mails decodificam, sao validos e nao se repetem', () => {
     assert.match(e, /^[^@\s]+@[^@\s]+\.[^@\s]+$/, `e-mail inválido em ${p.n}`);
     assert.ok(!seen.has(e), `e-mail duplicado entre ${seen.get(e)} e ${p.n}: ${e}`);
     seen.set(e, p.n);
+  }
+});
+
+// ── horarios por dia ──────────────────────────────────────────────────────
+// Dois horarios por dia foi o que permitiu fechar o programa em 30/09/2026.
+// Se buildSlots errar, o rodizio agenda duas pessoas no mesmo horario ou
+// estoura o prazo sem ninguem perceber.
+
+test('buildSlots: um horario por dia gera uma rodada por dia', () => {
+  const s = buildSlots(4, '2026-09-10', [1, 2, 3, 4, 5], ['09:00']);
+  assert.equal(s.length, 4);
+  assert.equal(new Set(s.map((x) => x.date)).size, 4, 'cada rodada em um dia');
+  assert.ok(s.every((x) => x.time === '09:00'));
+});
+
+test('buildSlots: dois horarios por dia dobram as rodadas por data', () => {
+  const s = buildSlots(4, '2026-09-10', [1, 2, 3, 4, 5], ['09:00', '14:00']);
+  assert.equal(s.length, 4);
+  assert.equal(new Set(s.map((x) => x.date)).size, 2, 'duas rodadas por dia');
+  assert.deepEqual(s.map((x) => x.time), ['09:00', '14:00', '09:00', '14:00']);
+});
+
+test('buildSlots: numero impar de rodadas nao inventa uma sobrando', () => {
+  const s = buildSlots(3, '2026-09-10', [1, 2, 3, 4, 5], ['09:00', '14:00']);
+  assert.equal(s.length, 3, 'o ultimo dia fica com uma rodada so');
+  assert.equal(s[2].time, '09:00');
+});
+
+test('buildSlots: sem horarios definidos ainda produz um plano valido', () => {
+  const s = buildSlots(3, '2026-09-10', [1, 2, 3, 4, 5], undefined);
+  assert.equal(s.length, 3);
+  assert.ok(s.every((x) => x.date && x.time));
+});
+
+test('o programa de 30 pessoas fecha em 30/09/2026 com dois turnos', () => {
+  const ids = Array.from({ length: 30 }, (_, i) => i + 1);
+  const { plan, slots } = buildPlan(ids, {
+    start: '2026-09-10', weekdays: [1, 2, 3, 4, 5], times: ['09:00', '14:00']
+  });
+  assert.equal(slots.length, 29, '29 rodadas');
+  assert.equal(slots[slots.length - 1].date, '2026-09-30', 'ultima rodada em 30/09/2026');
+  // toda entrada do plano precisa ter data E hora, senao o .ics sai quebrado
+  for (const k of Object.keys(plan)) {
+    assert.ok(plan[k].date, `sem data em ${k}`);
+    assert.ok(plan[k].time, `sem horario em ${k}`);
+  }
+});
+
+test('ninguem tem dois encontros no mesmo dia e horario', () => {
+  const ids = Array.from({ length: 30 }, (_, i) => i + 1);
+  const { plan } = buildPlan(ids, {
+    start: '2026-09-10', weekdays: [1, 2, 3, 4, 5], times: ['09:00', '14:00']
+  });
+  const ocupado = new Set();
+  for (const [k, v] of Object.entries(plan)) {
+    for (const p of k.split('-')) {
+      const slot = `${p}@${v.date}T${v.time}`;
+      assert.ok(!ocupado.has(slot), `conflito de agenda: ${slot}`);
+      ocupado.add(slot);
+    }
   }
 });

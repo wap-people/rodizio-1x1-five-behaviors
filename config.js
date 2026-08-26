@@ -10,13 +10,20 @@
 export const CONFIG = {
   defaults: {
     /** Primeira rodada. A partir daqui o sistema procura os dias escolhidos. */
-    start: '2026-09-08',
+    start: '2026-09-10',
 
     /** Dias da semana das rodadas. 0=Dom, 1=Seg … 6=Sáb. */
-    weekdays: [2, 4],
+    weekdays: [1, 2, 3, 4, 5],
 
-    /** Horário padrão de todas as rodadas (todos os pares da rodada em paralelo). */
-    time: '14:00',
+    /**
+     * Horários das rodadas dentro de cada dia. Um por rodada, na ordem.
+     *
+     * Dois horários = duas rodadas por dia. É o que faz as 29 rodadas caberem
+     * entre 10/09 e 30/09/2026 — com uma rodada por dia o programa iria até
+     * outubro, e com Ter/Qui até 15/12. Em troca, cada gestor tem dois 1x1 no
+     * mesmo dia nos dias cheios.
+     */
+    times: ['09:00', '14:00'],
 
     /** Duração de cada 1x1, em minutos. */
     duration: 45,

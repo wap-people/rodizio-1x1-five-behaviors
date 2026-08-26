@@ -27,7 +27,7 @@ config.js             o que a área de People edita: datas, link do Drive, drive
 src/
   data/participants.js  os 30 gestores. Fonte da verdade dos ids. E-mails em `e64` (Base64).
                         `mail(p)` e o unico ponto de decodificacao.
-  core/schedule.js      round-robin, datas, organizadores. Puro, sem DOM. É o que os testes cobrem.
+  core/schedule.js      round-robin, slots (data+hora), organizadores. Puro, sem DOM. É o que os testes cobrem.
   core/firebase.js      carrega o SDK uma vez so (Firestore e Auth compartilham a instancia)
   core/store.js         persistência plugável: local | firebase | memory
   core/auth.js          login sem senha por link de e-mail; barra fora de @wap.ind.br
@@ -56,6 +56,10 @@ rode os testes antes de qualquer coisa.
 2. Dentro de uma rodada **ninguém aparece em dois encontros** — é o que permite
    as 15 duplas acontecerem em paralelo no mesmo horário.
 3. Cada par tem **um único organizador**, e a carga de convites fica equilibrada.
+3b. Cada rodada tem **uma data E um horário** (`plan[k].time`). Com dois
+   horários por dia, `cfg.time` deixou de existir — quem usar o horário global
+   no lugar do horário da rodada agenda tudo no mesmo turno e derruba a
+   invariante 2 na prática, mesmo com os pares corretos.
 4. `pairKey(a,b)` é sempre `menor-maior`. Os registros de encontros concluídos
    são gravados por essa chave: mudar o formato **apaga o histórico de todo mundo**.
 5. Ids em `participants.js` são permanentes. Nunca reaproveite o id de quem saiu —

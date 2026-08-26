@@ -9,6 +9,13 @@ conta própria, o sistema gera um **rodízio round-robin**: 29 rodadas, 15 dupla
 em paralelo por rodada, sem nenhum choque de agenda. Cada pessoa tem exatamente
 um encontro por rodada e, ao fim, conversou com os 29 colegas.
 
+O calendário vai de **10/09 a 30/09/2026**, de segunda a sexta, com **duas
+rodadas por dia** (09:00 e 14:00). Essa compressão é o que faz o programa caber
+em setembro: com uma rodada por dia ele terminaria em 20/10, e com dois dias por
+semana em 15/12. O custo é real e vale dizer em voz alta — nos dias cheios cada
+gestor tem **dois 1x1 de 45 min no mesmo dia**. Para afrouxar, apague o segundo
+horário na tela Configuração; para apertar mais, reduza a duração.
+
 ---
 
 ## Rodando localmente

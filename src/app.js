@@ -22,7 +22,7 @@ const S = {
   view: 'me',
   cfg: { ...CONFIG.defaults },
   status: {},
-  rounds: [], organizers: {}, dates: [], plan: {},
+  rounds: [], organizers: {}, dates: [], slots: [], plan: {},
   meFilter: 'all', meQuery: '',
   // getter, nao snapshot: o store pode cair para local no meio da sessao
   // e a tela Configuracao precisa contar a verdade quando isso acontece.
@@ -71,11 +71,12 @@ let auth;
 
 /* ─────────────── plano ─────────────── */
 function rebuild() {
-  const { rounds, organizers, dates, plan } = buildPlan(S.activeIds(), {
+  const { rounds, organizers, dates, slots, plan } = buildPlan(S.activeIds(), {
     start: S.cfg.start,
-    weekdays: S.cfg.weekdays
+    weekdays: S.cfg.weekdays,
+    times: S.cfg.times
   });
-  Object.assign(S, { rounds, organizers, dates, plan });
+  Object.assign(S, { rounds, organizers, dates, slots, plan });
 }
 
 /* ─────────────── feedback ─────────────── */
@@ -195,7 +196,7 @@ const App = {
   openTeams(a, b) {
     const pl = S.plan[pairKey(a, b)];
     window.open(
-      teamsMeetingLink(a, b, { date: pl?.date, cfg: S.cfg, mailOf: S.mailOf }),
+      teamsMeetingLink(a, b, { date: pl?.date, time: pl?.time, cfg: S.cfg, mailOf: S.mailOf }),
       '_blank', 'noopener'
     );
     if (!S.status[pairKey(a, b)]) App.setStatus(a, b, 'sched', pl?.date || '');
@@ -256,7 +257,11 @@ const App = {
     const weekdays = [...document.querySelectorAll('[data-day]')].filter((i) => i.checked).map((i) => +i.dataset.day);
     if (!weekdays.length) return toast('Escolha pelo menos um dia da semana.', 'alert');
     S.cfg.start = document.getElementById('cStart').value || S.cfg.start;
-    S.cfg.time = document.getElementById('cTime').value || S.cfg.time;
+    // Segundo horario vazio = uma rodada por dia. E o botao que decide se o
+    // programa dura tres semanas ou tres meses.
+    const t1 = document.getElementById('cTime').value || '09:00';
+    const t2 = document.getElementById('cTime2').value;
+    S.cfg.times = t2 && t2 !== t1 ? [t1, t2].sort() : [t1];
     S.cfg.duration = +document.getElementById('cDur').value;
     S.cfg.driveUrl = document.getElementById('cDrive').value.trim() || S.cfg.driveUrl;
     S.cfg.weekdays = weekdays;
@@ -305,7 +310,7 @@ const App = {
     if (!S.me) return App.openWho();
     const items = App.myPairs().map((k) => {
       const [a, b] = k.split('-').map(Number);
-      return { a, b, date: S.plan[k].date };
+      return { a, b, date: S.plan[k].date, time: S.plan[k].time };
     });
     download(
       `meus-1x1-${short(byId(S.me).n).toLowerCase().replace(/\s+/g, '-')}.ics`,
@@ -318,7 +323,7 @@ const App = {
   downloadAllICS() {
     const items = Object.keys(S.plan).map((k) => {
       const [a, b] = k.split('-').map(Number);
-      return { a, b, date: S.plan[k].date };
+      return { a, b, date: S.plan[k].date, time: S.plan[k].time };
     });
     download('rodizio-1x1-completo.ics',
       buildICS(items, { cfg: S.cfg, mailOf: S.mailOf, organizers: S.organizers }), 'text/calendar');
@@ -339,7 +344,7 @@ const App = {
       const other = a === S.me ? b : a;
       const st = S.status[k];
       const who = st?.st === 'done' ? 'CONCLUÍDO' : S.organizers[k] === S.me ? 'você convida' : 'ele(a) convida';
-      return `R${String(S.plan[k].round).padStart(2, '0')} ${fmtDate(S.plan[k].date)} ${S.cfg.time} — ${byId(other).n} (${byId(other).c}) — ${who}`;
+      return `R${String(S.plan[k].round).padStart(2, '0')} ${fmtDate(S.plan[k].date)} ${S.plan[k].time} — ${byId(other).n} (${byId(other).c}) — ${who}`;
     });
     copy(`Meus 1x1 · Five Behaviors — ${byId(S.me).n}\n\n${lines.join('\n')}\n\nRelatórios: ${S.cfg.driveUrl}`, 'Lista copiada.');
   },

@@ -152,7 +152,7 @@ export function viewDash(S) {
             <div class="min-w-0">
               <div class="text-[13px] font-bold truncate">${esc(short(byId(a).n))}
                 <span style="color:var(--subtle);font-weight:400">×</span> ${esc(short(byId(b).n))}</div>
-              <div class="text-[11.5px]" style="color:var(--muted)">Rodada ${pl.round} · ${S.cfg.time}</div>
+              <div class="text-[11.5px]" style="color:var(--muted)">Rodada ${pl.round} · ${pl.time}</div>
             </div>
             ${statusTag(S, k)}
           </div>`;
@@ -253,7 +253,7 @@ export function viewMe(S) {
       </div>
       <div class="text-right">
         <div class="text-[15px] font-bold mono">${fmtLong(next.pl.date)}</div>
-        <div class="text-[12px] mono" style="color:var(--muted)">${S.cfg.time} · ${S.cfg.duration} min · rodada ${next.pl.round}</div>
+        <div class="text-[12px] mono" style="color:var(--muted)">${next.pl.time} · ${S.cfg.duration} min · rodada ${next.pl.round}</div>
       </div>
       <div class="flex gap-2 w-full sm:w-auto">
         ${next.isOrg
@@ -286,7 +286,7 @@ export function viewMe(S) {
             ${it.s?.rm ? `<span class="tag t-late" title="Já foi cancelado e precisa ser remarcado"><span data-ic="undo" data-sz="12"></span>Remarcado ${it.s.rm}×</span>` : ''}
           </div>
           <div class="text-[12px] mt-0.5 truncate" style="color:var(--muted)">
-            ${esc(p.c)} · <span class="mono">Rodada ${it.pl.round} — ${fmtLong(it.pl.date)}, ${S.cfg.time}</span>
+            ${esc(p.c)} · <span class="mono">Rodada ${it.pl.round} — ${fmtLong(it.pl.date)}, ${it.pl.time}</span>
           </div>
           ${it.s?.nt ? `<div class="text-[12px] mt-1 pl-2 border-l-2" style="border-color:var(--border);color:var(--subtle)">${esc(it.s.nt)}</div>` : ''}
         </div>
@@ -334,6 +334,7 @@ export function viewRounds(S) {
   <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
     ${S.rounds.map((pairs, i) => {
       const date = S.dates[i];
+      const hora = S.slots?.[i]?.time || '';
       const done = pairs.filter(([a, b]) => S.status[pairKey(a, b)]?.st === 'done').length;
       const past = date < today;
       const full = done === pairs.length;
@@ -342,7 +343,7 @@ export function viewRounds(S) {
         <div class="flex items-start justify-between gap-2 mb-2">
           <div>
             <div class="text-[10.5px] font-bold uppercase tracking-[.09em]" style="color:var(--subtle)">Rodada ${i + 1}</div>
-            <div class="text-[15px] font-bold mono">${fmtLong(date)} <span class="text-[12px] font-semibold" style="color:var(--muted)">${fmtShort(date)} · ${S.cfg.time}</span></div>
+            <div class="text-[15px] font-bold mono">${fmtLong(date)} <span class="text-[12px] font-semibold" style="color:var(--muted)">${fmtShort(date)} · ${hora}</span></div>
           </div>
           <span class="tag ${full ? 't-done' : past ? 't-late' : 't-pend'}">${done}/${pairs.length}</span>
         </div>
@@ -468,7 +469,15 @@ export function viewConfig(S) {
       <div class="text-[14px] font-bold mb-3">Calendário do rodízio</div>
       <div class="grid sm:grid-cols-2 gap-3">
         <div><label class="lbl" for="cStart">Início do programa</label><input type="date" id="cStart" class="inp" value="${S.cfg.start}"></div>
-        <div><label class="lbl" for="cTime">Horário padrão</label><input type="time" id="cTime" class="inp" value="${S.cfg.time}"></div>
+        <div><label class="lbl" for="cTime">1º horário do dia</label><input type="time" id="cTime" class="inp" value="${(S.cfg.times || [])[0] || '09:00'}"></div>
+      </div>
+      <div class="mt-3">
+        <label class="lbl" for="cTime2">2º horário do dia (opcional)</label>
+        <input type="time" id="cTime2" class="inp" value="${(S.cfg.times || [])[1] || ''}">
+        <p class="text-[11.5px] mt-1" style="color:var(--subtle)">
+          Deixe em branco para uma rodada por dia. Preenchido, cada dia recebe duas rodadas —
+          é o que encurta o programa, ao custo de dois 1x1 no mesmo dia para cada pessoa.
+        </p>
       </div>
       <div class="mt-3">
         <label class="lbl">Dias da semana das rodadas</label>
@@ -482,8 +491,10 @@ export function viewConfig(S) {
         <select id="cDur" class="inp">${[30, 45, 60, 90].map((v) => `<option value="${v}" ${S.cfg.duration === v ? 'selected' : ''}>${v} minutos</option>`).join('')}</select>
       </div>
       <div class="mt-4 p-3 rounded-lg text-[12.5px]" style="background:var(--surface-2)">
-        <b class="mono" style="color:var(--amber)">${S.rounds.length} rodadas</b> · ${S.cfg.weekdays.length || 1} por semana ⇒ cerca de
-        <b class="mono">${weeks} semanas</b>, terminando em <b class="mono">${fmtDate(S.dates[S.dates.length - 1])}</b>.
+        <b class="mono" style="color:var(--amber)">${S.rounds.length} rodadas</b> ·
+        ${(S.cfg.times || []).length > 1 ? '<b class="mono">2 por dia</b> · ' : ''}${S.cfg.weekdays.length || 1} dias por semana ⇒
+        <b class="mono">${new Set(S.dates).size} dias úteis</b>, terminando em
+        <b class="mono">${fmtDate(S.dates[S.dates.length - 1])}</b>.
       </div>
       <button class="btn btn-primary mt-4" onclick="App.applyConfig()"><span data-ic="check" data-sz="15"></span>Aplicar e recalcular</button>
     </div>
