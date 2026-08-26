@@ -15,7 +15,7 @@
  * Quem lê o código decodifica em um segundo; proteção de verdade seria fechar
  * o site atrás de login (veja "Privacidade" no README).
  *
- * Para gerar ou conferir um e64:  npm run email -- alguem@wap.ind.br
+ * Para gerar ou conferir um e64:  npm run email -- <endereco-da-pessoa>
  */
 export const PARTICIPANTS = [
   { id: 1,  n: 'Paulo da Nobrega Sanford',        c: 'CEO',                                  t: 'dir',   e64: 'cGF1bG8uc2FuZm9yZEB3YXAuaW5kLmJy' },

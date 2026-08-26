@@ -84,7 +84,7 @@ uma conta @wap.ind.br. Custa uma tela de login e um registro de app no Entra ID
 Para gerar o `e64` de alguém que entrar depois:
 
 ```bash
-npm run email -- fulano.sobrenome@wap.ind.br
+npm run email -- <endereco-da-pessoa>
 ```
 
 O mesmo comando faz o caminho inverso: passe o `e64` e ele devolve o e-mail.
@@ -185,7 +185,7 @@ serve para reservar os horários na agenda; ele não cria a sala.
 ## Manutenção
 
 **Alguém entrou na liderança** → gere o e-mail codificado com
-`npm run email -- fulano@wap.ind.br` e adicione a linha em
+`npm run email -- <endereco>` e adicione a linha em
 `src/data/participants.js` com um id novo (nunca reaproveite id antigo).
 Depois `npm test` e push.
 

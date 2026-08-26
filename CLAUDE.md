@@ -13,7 +13,7 @@ npm test             # invariantes do rodízio (obrigatório antes de commitar)
 npm run build:css    # gera assets/app.css a partir de src/styles/app.css
 npm run watch:css    # o mesmo, em modo observação, durante o desenvolvimento
 npm run check        # test + build
-npm run email -- x@y # e-mail <-> Base64 do campo e64
+npm run email -- <x> # e-mail <-> Base64 do campo e64
 ```
 
 Sem bundler e sem framework: são ES modules nativos. `npm run dev` existe
@@ -64,7 +64,7 @@ rode os testes antes de qualquer coisa.
    só `mail(p)` decodifica; todo o resto do sistema lê via `S.mailOf(id)`.
    Não é segurança — é para o código público não virar lista de phishing
    (o raciocínio inteiro está em "Privacidade" no README). Gere com
-   `npm run email -- fulano@wap.ind.br`.
+   `npm run email -- <endereco>`.
 7. **E-mails não se repetem.** Endereço duplicado manda o 1x1 de uma pessoa
    para outra — foi o defeito que veio na planilha de origem. Há teste.
 8. **Chamada ao Firestore sempre com timeout.** O SDK nao rejeita quando o
