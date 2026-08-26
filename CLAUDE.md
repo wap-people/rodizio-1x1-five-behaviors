@@ -28,7 +28,9 @@ src/
   data/participants.js  os 30 gestores. Fonte da verdade dos ids. E-mails em `e64` (Base64).
                         `mail(p)` e o unico ponto de decodificacao.
   core/schedule.js      round-robin, datas, organizadores. Puro, sem DOM. É o que os testes cobrem.
+  core/firebase.js      carrega o SDK uma vez so (Firestore e Auth compartilham a instancia)
   core/store.js         persistência plugável: local | firebase | memory
+  core/auth.js          login sem senha por link de e-mail; barra fora de @wap.ind.br
   core/integrations.js  deep links do Teams, .ics, .csv
   ui/icons.js           SVGs inline (nunca emoji como ícone)
   ui/format.js          datas pt-BR e escape de HTML
@@ -37,8 +39,13 @@ src/
   styles/app.css        fonte do CSS (compilado para assets/app.css)
 ```
 
-Fluxo: `config.js` + `store` → estado `S` → `rebuild()` monta o plano →
-`render()` desenha a view. Toda ação muda `S`, persiste e chama `render()`.
+Fluxo: `boot()` resolve o login → `start()` monta `config.js` + `store` →
+estado `S` → `rebuild()` monta o plano → `render()` desenha a view.
+Toda ação muda `S`, persiste e chama `render()`.
+
+`boot()` so exige login quando o driver e `firebase`. Se o SDK nao carregar
+(CDN bloqueada), cai para modo local **sem** tela de login: prender a pessoa
+num login que nao vai funcionar e pior que nao compartilhar.
 
 ## Invariantes que não podem quebrar
 
@@ -60,6 +67,16 @@ rode os testes antes de qualquer coisa.
    `npm run email -- fulano@wap.ind.br`.
 7. **E-mails não se repetem.** Endereço duplicado manda o 1x1 de uma pessoa
    para outra — foi o defeito que veio na planilha de origem. Há teste.
+8. **Chamada ao Firestore sempre com timeout.** O SDK nao rejeita quando o
+   backend esta inacessivel: repete para sempre e o app fica no "Carregando"
+   eternamente, sem que nenhum try/catch rode. Use `withTimeout` de
+   `core/firebase.js`.
+9. **Escrita que falha nao pode falhar calada.** Se `saveStatus`/`saveConfig`
+   engolir o erro, o gestor clica em Registrar 1x1, nada acontece e o registro
+   some. O store cai para local, avisa por toast e preserva o dado.
+10. **`email_verified` na regra do Firestore nao e enfeite.** O Firebase obriga
+   o provedor E-mail/senha ligado junto com o link; sem essa clausula qualquer
+   um se cadastra com senha num @wap.ind.br inventado e le as notas dos 1x1.
 
 ## Padrão visual (WAP × WAAW by ALOK)
 

@@ -93,62 +93,60 @@ O mesmo comando faz o caminho inverso: passe o `e64` e ele devolve o e-mail.
 
 ## Onde ficam os dados
 
-O `driver` em `config.js` decide:
+Firestore do projeto `rodizio-1x1-wap`, região `southamerica-east1` (São Paulo),
+plano Spark. Todo o estado cabe em **um documento**: `rodizio/estado`.
 
-| driver | Compartilhado? | Precisa configurar? |
-|---|---|---|
-| `local` (padrão) | Não — cada pessoa vê só os próprios registros | Nada |
-| `firebase` | Sim — painel único, em tempo real | Projeto Firebase |
+O driver fica em `config.js`. `local` (localStorage, cada pessoa vê só os
+próprios registros) serve para desenvolver; `firebase` é o que a dinâmica usa.
 
-Para uma dinâmica de 30 pessoas, `local` só serve para testar. **Quem vai usar de
-verdade quer o `firebase`**, senão o gestor A não enxerga o que o gestor B marcou.
+### Custo
 
-### Ligando o Firestore (10 minutos, plano gratuito)
+Nenhum, e não é "baixo" — é estruturalmente zero. O plano Spark não tem forma
+de pagamento vinculada: se a cota acabar, o Firestore recusa a operação até o
+dia seguinte, não gera fatura. As cotas diárias gratuitas são 50 mil leituras e
+20 mil gravações; o programa inteiro consome **435 gravações** (uma por
+encontro) e algumas centenas de leituras por dia.
 
-1. Em [console.firebase.google.com](https://console.firebase.google.com), crie um
-   projeto e depois um app **Web**. Copie o objeto `firebaseConfig`.
-2. **Build → Firestore Database → Criar banco**, modo produção.
-3. Em `config.js`, cole as chaves e troque o driver:
+### Acesso
 
-```js
-storage: {
-  driver: 'firebase',
-  firebase: {
-    apiKey: 'AIza…',
-    authDomain: 'seu-projeto.firebaseapp.com',
-    projectId: 'seu-projeto',
-    storageBucket: 'seu-projeto.appspot.com',
-    messagingSenderId: '000000000000',
-    appId: '1:000000000000:web:abc123',
-    collection: 'rodizio',
-    document: 'estado'
-  }
-}
-```
-
-4. Em **Firestore → Regras**, cole:
+O site é público, mas os dados não. A regra do Firestore:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /rodizio/estado {
-      allow read, write: if true;
+      allow read, write: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@wap[.]ind[.]br');
     }
   }
 }
 ```
 
-**Leia isto antes de usar essa regra:** ela libera leitura e escrita para
-qualquer pessoa que conheça a URL. Para uma dinâmica interna com link não
-divulgado, costuma ser aceitável — mas não é segurança de verdade, e os dados
-gravados são nomes, e-mails corporativos e notas dos 1x1. Se as notas puderem
-ser sensíveis, ative Firebase Authentication com login Microsoft (o tenant da
-WAP já é Entra ID) e troque a regra por `if request.auth != null`. Vale
-conversar com o TI antes de subir.
+Só o documento `rodizio/estado` é alcançável; o resto do banco fica trancado.
 
-Se o Firestore estiver mal configurado ou fora do ar, o sistema avisa na tela e
-continua funcionando em modo local em vez de quebrar.
+O login é **sem senha, por link no e-mail** (`src/core/auth.js`): a pessoa
+informa o endereço @wap.ind.br, recebe um link e entra ao clicar. Login com a
+Microsoft seria melhor — o tenant já é Entra ID — mas exige registro de app no
+Azure com o TI; o link por e-mail dá a mesma garantia (só entra quem tem a
+caixa) sem depender de ninguém.
+
+**Por que `email_verified` está na regra.** O Firebase não deixa ativar o link
+de e-mail sem ativar também o provedor E-mail/senha. Sem essa cláusula,
+qualquer pessoa poderia se cadastrar com senha usando um endereço @wap.ind.br
+inventado e passar na regra — cadastro por senha nasce com
+`email_verified: false`, e o link por e-mail nasce com `true`. O app nunca
+oferece cadastro por senha, e a regra fecha a porta dos fundos.
+
+**Ao publicar em um domínio novo**, cadastre-o em Authentication → Settings →
+Domínios autorizados, senão o envio do link falha com
+`auth/unauthorized-continue-uri`. Já estão lá `wap-people.github.io` e
+`localhost`.
+
+Se o Firestore ou a CDN do Google estiverem inacessíveis, o app avisa e cai
+para modo local em vez de travar — inclusive o login é pulado, porque prender
+alguém numa tela que não vai funcionar é pior que não compartilhar.
 
 ---
 

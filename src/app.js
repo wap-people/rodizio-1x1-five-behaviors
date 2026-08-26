@@ -8,6 +8,7 @@ import { CONFIG } from '../config.js';
 import { PARTICIPANTS, byId, mail, short, initials, TIERS } from './data/participants.js';
 import { buildPlan, pairKey, pct } from './core/schedule.js';
 import { createStore } from './core/store.js';
+import { createAuth, isCorporate } from './core/auth.js';
 import {
   teamsMeetingLink, teamsChatLink, buildICS, buildCSV, download
 } from './core/integrations.js';
@@ -63,6 +64,7 @@ const S = {
 };
 
 let store;
+let auth;
 
 /* ─────────────── plano ─────────────── */
 function rebuild() {
@@ -300,6 +302,36 @@ const App = {
     copy(S.activeIds().map((id) => S.mailOf(id)).join('; '), 'E-mails copiados.');
   },
 
+  /* ── porta de entrada ── */
+  async gateSend(email) {
+    const btn = document.getElementById('gateBtn');
+    if (btn) btn.disabled = true;
+    try {
+      const to = await auth.sendLink(email);
+      renderGate({ mode: 'sent', email: to });
+    } catch (err) {
+      renderGate({ mode: 'signin', email, msg: err.message });
+    }
+  },
+
+  async gateFinish(email) {
+    const btn = document.getElementById('gateBtn');
+    if (btn) btn.disabled = true;
+    try {
+      await auth.finishWithEmail(email);
+      await start();
+    } catch (err) {
+      renderGate({ mode: 'askEmail', email, msg: err.message });
+    }
+  },
+
+  gateBack() { renderGate({ mode: 'signin' }); },
+
+  async logout() {
+    await auth.signOut();
+    window.location.reload();
+  },
+
   toggleBW() {
     const on = document.documentElement.dataset.bw !== '1';
     document.documentElement.dataset.bw = on ? '1' : '0';
@@ -308,8 +340,100 @@ const App = {
 };
 window.App = App;
 
+/* ─────────────── porta de entrada ─────────────── */
+
+/**
+ * Esconde a navegação enquanto ninguém entrou. A tela de login não é uma
+ * "view": ela substitui o app inteiro, senão o menu convida a clicar em
+ * telas que não têm dado nenhum para mostrar.
+ */
+function setChrome(on) {
+  const d = on ? '' : 'none';
+  document.querySelectorAll('nav[aria-label], .lg\\:hidden.fixed').forEach((n) => {
+    n.style.display = d;
+  });
+  ['whoBtn', 'driveTop'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = d;
+  });
+}
+
+/** @param {{mode:'signin'|'sent'|'askEmail', msg?:string, email?:string}} st */
+function renderGate(st) {
+  setChrome(false);
+  const main = document.getElementById('main');
+  const erro = st.msg
+    ? `<div class="mt-3 text-[12.5px]" style="color:var(--danger)"><span data-ic="alert" data-sz="14"></span> ${esc(st.msg)}</div>`
+    : '';
+
+  if (st.mode === 'sent') {
+    main.innerHTML = `
+      <div class="card p-8 max-w-[460px] mx-auto text-center">
+        <div class="text-[15px] font-bold mb-1">Link enviado</div>
+        <p class="text-[13px]" style="color:var(--muted)">
+          Enviei um link de acesso para <b>${esc(st.email)}</b>. Abra o e-mail
+          <b>neste mesmo navegador</b> e clique no link — não há senha.
+        </p>
+        <p class="text-[12px] mt-3" style="color:var(--subtle)">
+          Não chegou em alguns minutos? Confira o lixo eletrônico.
+        </p>
+        <button class="btn mt-4" onclick="App.gateBack()">Usar outro e-mail</button>
+      </div>`;
+    paintIcons(main);
+    return;
+  }
+
+  const askEmail = st.mode === 'askEmail';
+  main.innerHTML = `
+    <div class="card p-8 max-w-[460px] mx-auto">
+      <div class="text-[15px] font-bold mb-1">${askEmail ? 'Confirme seu e-mail' : 'Entrar'}</div>
+      <p class="text-[13px]" style="color:var(--muted)">
+        ${askEmail
+          ? 'Você abriu o link em outro aparelho. Digite o mesmo e-mail que pediu o acesso.'
+          : 'O rodízio guarda notas dos 1x1 da liderança, então o acesso é restrito. Informe seu e-mail corporativo e enviamos um link de entrada.'}
+      </p>
+      <label class="lbl mt-4" for="gateEmail">E-mail @wap.ind.br</label>
+      <input id="gateEmail" class="inp" type="email" autocomplete="email"
+             placeholder="nome.sobrenome@wap.ind.br" value="${esc(st.email || '')}">
+      ${erro}
+      <button class="btn btn-primary w-full mt-4" id="gateBtn">
+        <span data-ic="${askEmail ? 'check' : 'mail'}"></span>${askEmail ? 'Entrar' : 'Enviar link de acesso'}
+      </button>
+      <p class="text-[11.5px] mt-4" style="color:var(--subtle)">
+        Sem senha para criar ou lembrar: só entra quem tem acesso à caixa @wap.ind.br.
+      </p>
+    </div>`;
+  paintIcons(main);
+
+  const input = document.getElementById('gateEmail');
+  const go = () => (askEmail ? App.gateFinish(input.value) : App.gateSend(input.value));
+  document.getElementById('gateBtn').onclick = go;
+  input.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+  input.focus();
+}
+
+/**
+ * Botão de sair, montado só quando há login de verdade. Fica no cabeçalho
+ * porque a conta que entrou (o e-mail) não é a mesma coisa que "quem sou eu"
+ * no rodízio (o participante), e misturar os dois no mesmo botão confunde.
+ */
+function mountLogout() {
+  if (!auth?.user || document.getElementById('outBtn')) return;
+  const bw = document.getElementById('bwBtn');
+  const b = document.createElement('button');
+  b.id = 'outBtn';
+  b.className = 'btn btn-sm btn-ghost';
+  b.title = `Sair de ${auth.user.email}`;
+  b.setAttribute('aria-label', `Sair da conta ${auth.user.email}`);
+  b.innerHTML = '<span data-ic="logout" data-sz="15"></span>';
+  b.onclick = App.logout;
+  bw.parentNode.insertBefore(b, bw.nextSibling);
+  paintIcons(b);
+}
+
 /* ─────────────── boot ─────────────── */
-async function boot() {
+async function start() {
+  setChrome(true);
   store = await createStore(CONFIG.storage, {
     onDegrade: (msg) => {
       toast(msg, 'alert');
@@ -341,12 +465,45 @@ async function boot() {
   });
   document.getElementById('whoBtn').onclick = App.openWho;
   document.getElementById('bwBtn').onclick = App.toggleBW;
+  mountLogout();
   document.getElementById('whoSearch').addEventListener('input', (e) => App.drawWho(e.target.value));
 
   if (store.degraded) {
     toast('Firestore indisponível — trabalhando em modo local.', 'alert');
   }
   if (!S.me) setTimeout(App.openWho, 450);
+}
+
+async function boot() {
+  const sc = CONFIG.storage;
+  const wantsFirebase = sc?.driver === 'firebase' && sc.firebase?.projectId;
+
+  if (!wantsFirebase) return start();
+
+  try {
+    auth = await createAuth(sc.firebase);
+  } catch (err) {
+    // SDK fora do ar ou CDN bloqueada: melhor abrir em modo local do que
+    // deixar a pessoa presa numa tela de login que nunca vai funcionar.
+    console.warn('[auth] indisponível; seguindo sem login, em modo local.', err);
+    auth = null;
+    return start();
+  }
+
+  const back = await auth.finishLinkSignIn();
+  if (back.needsEmail) return renderGate({ mode: 'askEmail' });
+
+  const user = await auth.ready();
+  if (!user) return renderGate({ mode: 'signin', msg: back.error });
+
+  // Cinto e suspensório: a regra do Firestore já barra, mas não faz sentido
+  // abrir o painel para quem ele vai recusar em toda leitura.
+  if (!isCorporate(user.email)) {
+    await auth.signOut();
+    return renderGate({ mode: 'signin', msg: 'Só contas @wap.ind.br têm acesso.' });
+  }
+
+  return start();
 }
 
 boot().catch((err) => {

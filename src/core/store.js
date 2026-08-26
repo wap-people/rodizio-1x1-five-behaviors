@@ -11,31 +11,17 @@
  * Guardamos dois documentos lógicos: `status` (registros dos encontros) e
  * `config` (calendário, e-mails corrigidos, desativados). A identificação
  * "quem sou eu" é sempre local ao dispositivo, nunca compartilhada.
+ *
+ * O Firestore aqui exige login: a regra de segurança só libera para conta
+ * @wap.ind.br autenticada. Quem cuida disso é `auth.js`, antes do boot.
  */
+import { loadFirebase, withTimeout, TIMEOUT_MS } from './firebase.js';
 
 const K = {
   status: 'rodizio1x1:status:v1',
   config: 'rodizio1x1:config:v1',
   me: 'rodizio1x1:me:v1'
 };
-
-/**
- * O SDK do Firestore nao rejeita quando o backend esta inacessivel: ele
- * repete indefinidamente. Sem isto, projeto mal configurado, banco nao criado
- * ou CDN bloqueada pela rede corporativa deixam o app parado no "Carregando"
- * para sempre, e nenhum try/catch chega a rodar.
- */
-const TIMEOUT_MS = { read: 6000, write: 8000 };
-
-function withTimeout(promise, ms, acao) {
-  let t;
-  return Promise.race([
-    promise.finally(() => clearTimeout(t)),
-    new Promise((_, reject) => {
-      t = setTimeout(() => reject(new Error(`Firestore nao respondeu em ${ms}ms (${acao}).`)), ms);
-    })
-  ]);
-}
 
 const safeParse = (raw, fallback) => {
   try {
@@ -110,14 +96,9 @@ function firebaseDriver(cfg) {
     name: 'firebase',
     shared: true,
     async init() {
-      const V = cfg.sdkVersion || '10.12.2';
-      // A CDN do gstatic tambem pode estar bloqueada na rede da empresa.
-      const [{ initializeApp }, fs] = await withTimeout(Promise.all([
-        import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
-        import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`)
-      ]), TIMEOUT_MS.read, 'carregar o SDK');
+      const { app, fs } = await loadFirebase(cfg);
       mods = fs;
-      db = fs.getFirestore(initializeApp(cfg));
+      db = fs.getFirestore(app);
       ref = fs.doc(db, path, docId);
     },
     async read() {
