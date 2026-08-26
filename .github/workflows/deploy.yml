@@ -1,0 +1,61 @@
+name: Testar e publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Um deploy por vez; não cancela o que já está no ar.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Testar e compilar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # As invariantes do round-robin são o coração do sistema:
+      # se algum teste cair, nada vai para o ar.
+      - name: Invariantes do rodízio
+        run: npm test
+
+      - name: Compilar CSS
+        run: npm run build:css
+
+      # Só o que o navegador precisa. Publicar a raiz levaria junto
+      # node_modules (dezenas de MB) e estouraria o artefato do Pages.
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp index.html config.js _site/
+          cp -r assets src _site/
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

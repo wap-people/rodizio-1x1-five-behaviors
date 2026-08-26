@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+
+/* ═══════════════════════════════════════════════════════════════
+   Design tokens WAP × WAAW by ALOK
+   Marca (amarelo/lima) = identidade. Verde/âmbar/vermelho = semáforo.
+   Nunca use o lima de marca para significar "sucesso".
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --wap: #FFB400;
+  --amber: #FFB023;
+  --lime: #D7FF1A;
+  --lime-alt: #C8F135;
+
+  --bg: #0A0A0A;
+  --surface: #161618;
+  --surface-2: #0C0C0D;
+  --border: #27272A;
+  --text: #FAFAFA;
+  --muted: #A1A1AA;
+  --subtle: #71717A;
+
+  --ok: #4ADE80;
+  --warn: #FBBF24;
+  --danger: #F87171;
+  --info: #60A5FA;
+  --ring: #FFB023;
+}
+
+html, body {
+  font-family: "Segoe UI Variable", "Segoe UI Variable Display", "Segoe UI",
+               system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg);
+  color: var(--text);
+}
+
+* { scrollbar-width: thin; scrollbar-color: #3f3f46 transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ─────────────── superfícies ─────────────── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.card-top { position: relative; overflow: hidden; }
+.card-top::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: var(--lime-alt); opacity: .8;
+}
+.mono { font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+
+/* ─────────────── botões ─────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; padding: 8px 12px;
+  border: 1px solid var(--border); background: #1d1d20; color: var(--text);
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+  cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: #26262a; border-color: #3f3f46; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.btn-primary { background: var(--amber); color: #0A0A0A; border-color: var(--amber); }
+.btn-primary:hover { background: #ffc44d; border-color: #ffc44d; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn-ghost:hover { background: #1d1d20; color: var(--text); }
+.btn-sm { padding: 5px 9px; font-size: 12px; border-radius: 8px; }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+
+/* ─────────────── formulários ─────────────── */
+.inp {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+  padding: 8px 11px; font-size: 13px; color: var(--text); width: 100%;
+}
+.inp:focus { outline: 2px solid var(--ring); outline-offset: 1px; border-color: transparent; }
+label.lbl {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--subtle); margin-bottom: 6px;
+}
+
+/* ─────────────── semáforo (cor + ícone + rótulo, nunca só cor) ─────────────── */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+  font-weight: 700; padding: 3px 8px; border-radius: 999px; border: 1px solid;
+}
+.t-done    { color: var(--ok);     border-color: rgba(74,222,128,.35);  background: rgba(74,222,128,.10); }
+.t-sched   { color: var(--info);   border-color: rgba(96,165,250,.35);  background: rgba(96,165,250,.10); }
+.t-pend    { color: var(--warn);   border-color: rgba(251,191,36,.30);  background: rgba(251,191,36,.08); }
+.t-late    { color: var(--danger); border-color: rgba(248,113,113,.35); background: rgba(248,113,113,.10); }
+.t-neutral { color: var(--muted);  border-color: var(--border);         background: #1d1d20; }
+
+/* ─────────────── navegação ─────────────── */
+.nav-i {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 600; color: var(--muted); cursor: pointer;
+  border: 1px solid transparent; transition: all .16s ease; width: 100%; text-align: left;
+}
+.nav-i:hover { background: #1d1d20; color: var(--text); }
+.nav-i[aria-current="page"] {
+  background: rgba(255,176,35,.11); color: var(--amber); border-color: rgba(255,176,35,.28);
+}
+.nav-i:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* ─────────────── listas ─────────────── */
+.row {
+  display: grid; align-items: center; gap: 12px; padding: 11px 14px;
+  border-bottom: 1px solid var(--border); transition: background .14s ease;
+}
+.row:hover { background: #1b1b1e; }
+.row:last-child { border-bottom: none; }
+
+/* ─────────────── avatares por nível ─────────────── */
+.avatar {
+  width: 34px; height: 34px; flex: none; border-radius: 9px; display: grid;
+  place-items: center; font-size: 11.5px; font-weight: 800; letter-spacing: -.03em;
+}
+.av-dir  { background: rgba(255,180,0,.16);  color: var(--wap);      box-shadow: inset 0 0 0 1px rgba(255,180,0,.30); }
+.av-head { background: rgba(215,255,26,.13); color: var(--lime-alt); box-shadow: inset 0 0 0 1px rgba(215,255,26,.26); }
+.av-ger  { background: #232327;              color: #c4c4c8;         box-shadow: inset 0 0 0 1px #333338; }
+
+/* ─────────────── matriz ─────────────── */
+.mx td, .mx th { padding: 0; }
+.cellbox { width: 22px; height: 22px; border-radius: 4px; display: block; border: 1px solid #1f1f22; cursor: pointer; }
+.c-pend  { background: #202024; }
+.c-sched { background: rgba(96,165,250,.55); }
+.c-done  { background: var(--ok); }
+.c-self  {
+  background: repeating-linear-gradient(45deg, #151517, #151517 3px, #1e1e21 3px, #1e1e21 6px);
+  cursor: default;
+}
+.c-me { outline: 1.5px solid var(--amber); outline-offset: -1px; }
+
+/* ─────────────── progresso ─────────────── */
+.bar { height: 6px; border-radius: 999px; background: #232327; overflow: hidden; }
+.bar > i {
+  display: block; height: 100%; border-radius: 999px; background: var(--amber);
+  transition: width .5s cubic-bezier(.22,1,.36,1);
+}
+
+/* ─────────────── feedback ─────────────── */
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(120%);
+  z-index: 80; background: #1d1d20; border: 1px solid var(--border); border-radius: 11px;
+  padding: 11px 16px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 10px 34px rgba(0,0,0,.6);
+  transition: transform .28s cubic-bezier(.22,1,.36,1);
+  display: flex; align-items: center; gap: 10px;
+}
+.toast.on { transform: translateX(-50%) translateY(0); }
+
+dialog {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  color: var(--text); padding: 0; max-width: min(92vw, 560px); width: 100%;
+}
+dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(3px); }
+
+/* ─────────────── motion (só transform e opacity) ─────────────── */
+.reveal { opacity: 0; transform: translateY(8px); animation: rv .34s cubic-bezier(.22,1,.36,1) forwards; }
+@keyframes rv { to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ─────────────── acessibilidade ─────────────── */
+[data-bw="1"] #app { filter: grayscale(1); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@tailwind utilities;

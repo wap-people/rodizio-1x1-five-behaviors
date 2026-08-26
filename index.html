@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Agenda e acompanhamento dos 1x1 da liderança WAP com base no relatório comparativo The Five Behaviors (Long Vision).">
+<title>Rodízio 1x1 · The Five Behaviors — WAP</title>
+<link rel="icon" href="assets/logo-wap-waaw-white.webp">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+
+<div id="app" class="min-h-screen">
+
+  <header class="sticky top-0 z-40 border-b" style="border-color:var(--border);background:rgba(10,10,10,.88);backdrop-filter:blur(12px)">
+    <div class="max-w-[1500px] mx-auto px-4 md:px-6 h-[60px] flex items-center gap-4">
+      <img src="assets/logo-wap-waaw-white.webp" alt="WAP | WAAW by ALOK" class="h-[26px] w-auto shrink-0">
+      <div class="hidden md:block h-6 w-px" style="background:var(--border)"></div>
+      <div class="min-w-0 hidden md:block">
+        <div class="text-[13.5px] font-bold leading-tight truncate">Rodízio 1x1 · The Five Behaviors</div>
+        <div class="text-[11px] leading-tight" style="color:var(--subtle)">Long Vision · Liderança WAP</div>
+      </div>
+      <div class="flex-1"></div>
+      <a id="driveTop" href="#" target="_blank" rel="noopener" class="btn btn-sm">
+        <span data-ic="filetext"></span><span class="hidden sm:inline">Relatórios</span>
+      </a>
+      <button class="btn btn-sm btn-ghost" id="bwBtn" aria-label="Alternar modo preto e branco" title="Modo preto e branco">
+        <span data-ic="contrast"></span>
+      </button>
+      <button class="btn btn-sm" id="whoBtn">
+        <span class="avatar av-ger !w-[20px] !h-[20px] !rounded-md !text-[9px]" id="whoAv">?</span>
+        <span id="whoName" class="max-w-[130px] truncate">Identificar-se</span>
+        <span data-ic="chevron"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="max-w-[1500px] mx-auto px-4 md:px-6 py-5 flex gap-6">
+
+    <nav class="hidden lg:flex flex-col gap-1 w-[212px] shrink-0 sticky top-[76px] self-start" aria-label="Navegação principal">
+      <button class="nav-i" data-view="me"><span data-ic="user"></span>Meus 1x1<span class="ml-auto text-[11px] mono" id="navMeCount"></span></button>
+      <button class="nav-i" data-view="rounds"><span data-ic="calendar"></span>Rodízio</button>
+      <button class="nav-i" data-view="matrix"><span data-ic="grid"></span>Matriz geral</button>
+      <button class="nav-i" data-view="people"><span data-ic="users"></span>Participantes</button>
+      <button class="nav-i" data-view="config"><span data-ic="settings"></span>Configuração</button>
+      <div class="mt-5 px-3">
+        <div class="text-[10px] font-bold uppercase tracking-[.09em] mb-2" style="color:var(--subtle)">Progresso geral</div>
+        <div class="bar mb-2"><i id="globalBar" style="width:0%"></i></div>
+        <div class="text-[11px] mono" style="color:var(--muted)"><span id="globalTxt">0 / 0</span> encontros</div>
+      </div>
+    </nav>
+
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t flex" style="border-color:var(--border);background:rgba(10,10,10,.96);backdrop-filter:blur(12px)">
+      <button class="nav-i !flex-1 !flex-col !gap-1 !rounded-none !py-2 !text-[10px]" data-view="me"><span data-ic="user"></span>Meus</button>
+      <button class="nav-i !flex-1 !flex-col !gap-1 !rounded-none !py-2 !text-[10px]" data-view="rounds"><span data-ic="calendar"></span>Rodízio</button>
+      <button class="nav-i !flex-1 !flex-col !gap-1 !rounded-none !py-2 !text-[10px]" data-view="matrix"><span data-ic="grid"></span>Matriz</button>
+      <button class="nav-i !flex-1 !flex-col !gap-1 !rounded-none !py-2 !text-[10px]" data-view="people"><span data-ic="users"></span>Pessoas</button>
+      <button class="nav-i !flex-1 !flex-col !gap-1 !rounded-none !py-2 !text-[10px]" data-view="config"><span data-ic="settings"></span>Config</button>
+    </div>
+
+    <main class="flex-1 min-w-0 pb-24 lg:pb-6" id="main">
+      <div class="card p-10 text-center">
+        <div class="text-[14px] font-bold">Carregando o rodízio…</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="whoDlg" aria-label="Selecionar participante">
+  <div class="p-5 border-b" style="border-color:var(--border)">
+    <div class="text-[15px] font-bold">Quem é você?</div>
+    <p class="text-[12.5px] mt-1" style="color:var(--muted)">Escolha seu nome para ver sua agenda de 1x1. Fica salvo só neste dispositivo.</p>
+  </div>
+  <div class="p-4"><input id="whoSearch" class="inp" placeholder="Buscar nome, cargo ou área…" autocomplete="off"></div>
+  <div class="max-h-[340px] overflow-auto px-2 pb-2" id="whoList"></div>
+  <div class="p-4 border-t flex justify-end gap-2" style="border-color:var(--border)">
+    <button class="btn" onclick="document.getElementById('whoDlg').close()">Cancelar</button>
+  </div>
+</dialog>
+
+<dialog id="doneDlg" aria-label="Registrar encontro">
+  <form method="dialog" class="p-5">
+    <div class="text-[15px] font-bold mb-1" id="doneTitle">Registrar 1x1</div>
+    <p class="text-[12.5px] mb-4" style="color:var(--muted)" id="doneSub"></p>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div><label class="lbl" for="doneDate">Data em que aconteceu</label><input type="date" id="doneDate" class="inp"></div>
+      <div><label class="lbl" for="doneWho">Registrado por</label><input id="doneWho" class="inp" readonly></div>
+    </div>
+    <div class="mt-3">
+      <label class="lbl" for="doneNote">Nota (opcional — visível a todos)</label>
+      <textarea id="doneNote" class="inp" rows="2" placeholder="Principal acordo, ponto de atenção…"></textarea>
+    </div>
+    <div class="flex justify-between gap-2 mt-5">
+      <button class="btn" id="doneUndo" value="undo" type="submit">Desmarcar</button>
+      <div class="flex gap-2">
+        <button class="btn" value="cancel" type="submit">Cancelar</button>
+        <button class="btn btn-primary" value="ok" type="submit"><span data-ic="check"></span>Confirmar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
