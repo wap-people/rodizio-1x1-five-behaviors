@@ -32,8 +32,9 @@ function statusTag(S, key) {
   if (s?.st === 'done')
     return `<span class="tag t-done"><span data-ic="check" data-sz="12"></span>Concluído${s.dt ? ' · ' + fmtDate(s.dt) : ''}</span>`;
   if (s?.st === 'sched')
-    return `<span class="tag t-sched"><span data-ic="calendar" data-sz="12"></span>Agendado</span>`;
-  if (pl && pl.date < todayISO())
+    return `<span class="tag t-sched"><span data-ic="calendar" data-sz="12"></span>Agendado${s.dt ? ' · ' + fmtDate(s.dt) + (s.hr ? ' ' + s.hr : '') : ''}</span>`;
+  // O atraso segue a data combinada; sem ela, a sugerida da rodada.
+  if ((s?.dt || pl?.date) < todayISO())
     return `<span class="tag t-late"><span data-ic="alert" data-sz="12"></span>Atrasado</span>`;
   return `<span class="tag t-pend"><span data-ic="clock" data-sz="12"></span>Pendente</span>`;
 }
@@ -201,25 +202,28 @@ export function viewMe(S) {
     .sort((x, y) => x.pl.round - y.pl.round);
 
   const q = S.meQuery.toLowerCase();
+  // Data que vale é a combinada pela dupla; sem ela, a sugerida da rodada.
+  const quando = (it) => it.s?.dt || it.pl.date;
+
   const shown = all.filter((it) => {
     const p = byId(it.other);
     if (q && !(p.n.toLowerCase().includes(q) || p.c.toLowerCase().includes(q))) return false;
     const done = it.s?.st === 'done';
     if (S.meFilter === 'done') return done;
     if (S.meFilter === 'open') return !done;
-    if (S.meFilter === 'late') return !done && it.pl.date < today;
-    if (S.meFilter === 'next') return !done && it.pl.date >= today;
+    if (S.meFilter === 'late') return !done && quando(it) < today;
+    if (S.meFilter === 'next') return !done && quando(it) >= today;
     return true;
   });
 
-  const next = all.find((it) => it.s?.st !== 'done' && it.pl.date >= today);
+  const next = all.find((it) => it.s?.st !== 'done' && quando(it) >= today);
   const orgOpen = all.filter((i) => i.isOrg && i.s?.st !== 'done').length;
   const count = (f) => all.filter(f).length;
   const chips = [
     ['all', 'Todos', all.length],
     ['open', 'Em aberto', count((i) => i.s?.st !== 'done')],
-    ['next', 'Próximos', count((i) => i.s?.st !== 'done' && i.pl.date >= today)],
-    ['late', 'Atrasados', count((i) => i.s?.st !== 'done' && i.pl.date < today)],
+    ['next', 'Próximos', count((i) => i.s?.st !== 'done' && quando(i) >= today)],
+    ['late', 'Atrasados', count((i) => i.s?.st !== 'done' && quando(i) < today)],
     ['done', 'Concluídos', count((i) => i.s?.st === 'done')]
   ];
 
@@ -253,7 +257,7 @@ export function viewMe(S) {
       </div>
       <div class="text-right">
         <div class="text-[15px] font-bold mono">${fmtLong(next.pl.date)}</div>
-        <div class="text-[12px] mono" style="color:var(--muted)">${next.pl.time} · ${S.cfg.duration} min · rodada ${next.pl.round}</div>
+        <div class="text-[12px] mono" style="color:var(--muted)">${S.whenOf(next.k).time} · ${S.cfg.duration} min · rodada ${next.pl.round}</div>
       </div>
       <div class="flex gap-2 w-full sm:w-auto">
         ${next.isOrg
@@ -272,11 +276,44 @@ export function viewMe(S) {
     </div>
   </div>
 
+  ${(() => {
+    const abertos = shown.filter((it) => it.s?.st !== 'done');
+    const keys = abertos.map((it) => it.k);
+    const marcados = keys.filter((k) => S.sel.has(k)).length;
+    if (!keys.length) return '';
+    return `
+    <div class="card p-3 mb-3 flex flex-wrap items-end gap-3 reveal" style="${marcados ? 'border-color:rgba(255,176,35,.4)' : ''}">
+      <button class="btn btn-sm" onclick="App.selAll('${keys.join(',')}')">
+        <span data-ic="check" data-sz="14"></span>${marcados === keys.length ? 'Limpar seleção' : `Selecionar ${keys.length}`}
+      </button>
+      ${marcados ? `
+        <div class="text-[12.5px] font-bold" style="color:var(--amber)">${marcados} selecionado${marcados === 1 ? '' : 's'}</div>
+        <div><label class="lbl" for="bkDate">A partir de</label>
+          <input type="date" id="bkDate" class="inp !py-1 !text-[12.5px] !w-[145px]" value="${today}"></div>
+        <div><label class="lbl" for="bkTime">Hora</label>
+          <input type="time" id="bkTime" class="inp !py-1 !text-[12.5px] !w-[100px]" value="${(S.cfg.times || ['09:00'])[0]}"></div>
+        <div><label class="lbl" for="bkMode">Distribuir</label>
+          <select id="bkMode" class="inp !py-1 !text-[12.5px]">
+            <option value="sequencia">Em sequência no mesmo dia</option>
+            <option value="dia">Uma por dia útil</option>
+            <option value="semana">Uma por semana</option>
+            <option value="sugerida">Nas datas sugeridas das rodadas</option>
+          </select></div>
+        <button class="btn btn-sm btn-primary" onclick="App.bulkSchedule()"><span data-ic="calendar" data-sz="14"></span>Agendar</button>
+        <button class="btn btn-sm btn-ghost" onclick="App.clearSel()" aria-label="Cancelar seleção"><span data-ic="x" data-sz="14"></span></button>
+      ` : `<span class="text-[12.5px]" style="color:var(--muted)">Marque encontros para definir data e hora de vários de uma vez.</span>`}
+    </div>`;
+  })()}
+
   <div class="card overflow-hidden reveal">
     ${shown.length ? shown.map((it) => {
       const p = byId(it.other);
       const done = it.s?.st === 'done';
-      return `<div class="row" style="grid-template-columns:38px 1fr auto">
+      const w = S.whenOf(it.k);
+      return `<div class="row" style="grid-template-columns:24px 38px 1fr auto">
+        <input type="checkbox" ${done ? 'disabled' : ''} ${S.sel.has(it.k) ? 'checked' : ''}
+               aria-label="Selecionar o encontro com ${esc(p.n)}"
+               onchange="App.toggleSel('${it.k}')" style="width:15px;height:15px;accent-color:var(--amber)">
         ${av(p)}
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
@@ -286,8 +323,24 @@ export function viewMe(S) {
             ${it.s?.rm ? `<span class="tag t-late" title="Já foi cancelado e precisa ser remarcado"><span data-ic="undo" data-sz="12"></span>Remarcado ${it.s.rm}×</span>` : ''}
           </div>
           <div class="text-[12px] mt-0.5 truncate" style="color:var(--muted)">
-            ${esc(p.c)} · <span class="mono">Rodada ${it.pl.round} — ${fmtLong(it.pl.date)}, ${it.pl.time}</span>
+            ${esc(p.c)} · <span class="mono">Rodada ${it.pl.round}</span>
+            <span class="mono" style="color:var(--subtle)">— sugestão: ${fmtLong(it.pl.date)}, ${it.pl.time}</span>
           </div>
+          ${done ? '' : `
+          <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <input type="date" class="inp !py-1 !px-2 !text-[12px] !w-[140px]"
+                   aria-label="Data combinada com ${esc(p.n)}"
+                   value="${w.chosen ? w.date : ''}" placeholder="${it.pl.date}"
+                   onchange="App.setSchedule(${S.me},${it.other},this.value,this.parentNode.querySelector('input[type=time]').value)">
+            <input type="time" class="inp !py-1 !px-2 !text-[12px] !w-[96px]"
+                   aria-label="Horário combinado com ${esc(p.n)}"
+                   value="${w.time || ''}"
+                   onchange="App.setSchedule(${S.me},${it.other},this.parentNode.querySelector('input[type=date]').value || '${it.pl.date}',this.value)">
+            ${w.chosen
+              ? `<button class="btn btn-sm btn-ghost !px-2" title="Voltar para a data sugerida da rodada"
+                   onclick="App.setSchedule(${S.me},${it.other},'','')"><span data-ic="undo" data-sz="13"></span></button>`
+              : ''}
+          </div>`}
           ${it.s?.nt ? `<div class="text-[12px] mt-1 pl-2 border-l-2" style="border-color:var(--border);color:var(--subtle)">${esc(it.s.nt)}</div>` : ''}
         </div>
         <div class="flex gap-1.5 items-center">
@@ -296,8 +349,13 @@ export function viewMe(S) {
           <a class="btn btn-sm btn-ghost" href="mailto:${esc(S.mailOf(it.other))}" title="E-mail" aria-label="Enviar e-mail"><span data-ic="mail" data-sz="15"></span></a>
           <a class="btn btn-sm btn-ghost" href="${S.chatLink(it.other)}" target="_blank" rel="noopener" title="Chat no Teams" aria-label="Abrir chat no Teams"><span data-ic="chat" data-sz="15"></span></a>
           ${it.s?.st === 'sched'
-            ? `<button class="btn btn-sm" onclick="App.cancelSched(${S.me},${it.other})" title="Cancelar o agendamento e voltar para pendente"><span data-ic="calx" data-sz="14"></span><span class="hidden md:inline">Cancelar</span></button>`
-            : `<button class="btn btn-sm" onclick="App.openTeams(${S.me},${it.other})" title="Abrir agendamento no Teams"><span data-ic="video" data-sz="14"></span><span class="hidden md:inline">Teams</span></button>`}
+            ? `<button class="btn btn-sm btn-ghost !px-2" onclick="App.cancelSched(${S.me},${it.other})"
+                 title="Cancelar o agendamento e voltar para pendente" aria-label="Cancelar agendamento com ${esc(p.n)}"><span data-ic="calx" data-sz="14"></span></button>`
+            : ''}
+          <!-- O Teams fica sempre: agendar grava a data aqui, mas o convite
+               ainda precisa ser enviado por ele. Escondê-lo depois de agendar
+               tirava justamente o botao que falta apertar. -->
+          <button class="btn btn-sm" onclick="App.openTeams(${S.me},${it.other})" title="Abrir o convite no Teams com a data combinada"><span data-ic="video" data-sz="14"></span><span class="hidden md:inline">Teams</span></button>
           <button class="btn btn-sm ${done ? '' : 'btn-primary'}" onclick="App.openDone(${S.me},${it.other})"><span data-ic="check" data-sz="14"></span><span class="hidden md:inline">${done ? 'Editar' : 'Concluir'}</span></button>
         </div>
       </div>`;

@@ -129,6 +129,25 @@ export function buildPlan(activeIds, { start, weekdays, times }) {
   return { rounds, organizers, dates: slots.map((s) => s.date), slots, plan };
 }
 
+/** Soma dias a 'YYYY-MM-DD' sem esbarrar em fuso. */
+export function addDays(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+/** Próximo dia útil depois de 'YYYY-MM-DD' (pula sábado e domingo). */
+export function nextWeekday(iso) {
+  let d = addDays(iso, 1);
+  for (let i = 0; i < 7; i++) {
+    const [y, m, dd] = d.split('-').map(Number);
+    const w = new Date(y, m - 1, dd).getDay();
+    if (w !== 0 && w !== 6) return d;
+    d = addDays(d, 1);
+  }
+  return d;
+}
+
 /** Soma minutos a um "HH:MM", com virada de dia. */
 export function addMinutes(hhmm, min) {
   let [h, m] = hhmm.split(':').map(Number);

@@ -75,6 +75,14 @@ rode os testes antes de qualquer coisa.
    backend esta inacessivel: repete para sempre e o app fica no "Carregando"
    eternamente, sem que nenhum try/catch rode. Use `withTimeout` de
    `core/firebase.js`.
+8b. **A data que vale e a combinada (`status.dt`/`hr`), nao a da rodada.**
+   `plan[k].date` e sugestao. Tudo que agenda -- Teams, `.ics`, CSV, filtros de
+   atrasado -- le por `S.whenOf(k)`. Ler direto do `plan` faz o convite sair com
+   uma data e a tela mostrar outra.
+8c. **Escrita no Firestore usa `mergeFields`, nao `merge: true`.** Com `merge`
+   o Firestore mescla chave a chave: apagar um registro do objeto em JS nao
+   apaga nada no servidor, e o encontro desmarcado reaparece para todos no
+   proximo carregamento.
 9. **Escrita que falha nao pode falhar calada.** Se `saveStatus`/`saveConfig`
    engolir o erro, o gestor clica em Registrar 1x1, nada acontece e o registro
    some. O store cai para local, avisa por toast e preserva o dado.

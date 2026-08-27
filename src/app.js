@@ -6,7 +6,7 @@
  */
 import { CONFIG } from '../config.js';
 import { PARTICIPANTS, byId, mail, short, initials, TIERS } from './data/participants.js';
-import { buildPlan, pairKey, pct } from './core/schedule.js';
+import { buildPlan, pairKey, pct, addDays, nextWeekday, addMinutes } from './core/schedule.js';
 import { createStore } from './core/store.js';
 import { createAuth, isCorporate } from './core/auth.js';
 import {
@@ -24,6 +24,8 @@ const S = {
   status: {},
   rounds: [], organizers: {}, dates: [], slots: [], plan: {},
   meFilter: 'all', meQuery: '',
+  /** Chaves marcadas para o agendamento em lote. Só existe na sessão. */
+  sel: new Set(),
   // getter, nao snapshot: o store pode cair para local no meio da sessao
   // e a tela Configuracao precisa contar a verdade quando isso acontece.
   get storeInfo() {
@@ -37,6 +39,19 @@ const S = {
   chatLink: (otherId) => teamsChatLink(otherId, { cfg: S.cfg, mailOf: S.mailOf, me: S.me }),
   /** PDF do par, não a pasta raiz. Cai para a pasta só se o par não tiver relatório. */
   reportOf: (otherId) => reportLink(S.me, otherId, S.cfg),
+
+  /**
+   * Quando o encontro acontece de verdade.
+   *
+   * A data da rodada é só sugestão — quem manda é o que a dupla combinou e
+   * digitou. Tudo que agenda (Teams, .ics, CSV) tem que ler daqui, senão o
+   * convite sai com a data sugerida enquanto a tela mostra a combinada.
+   */
+  whenOf(key) {
+    const s = S.status[key] || {};
+    const pl = S.plan[key] || {};
+    return { date: s.dt || pl.date || '', time: s.hr || pl.time || '', chosen: Boolean(s.dt) };
+  },
 
   statsAll() {
     const total = Object.keys(S.plan).length;
@@ -193,13 +208,111 @@ const App = {
     });
   },
 
+  /**
+   * Grava a data e a hora combinadas pela dupla. É o que o convite vai usar.
+   * Encontro já concluído não volta para "agendado" só porque a data mudou.
+   */
+  async setSchedule(a, b, date, time) {
+    const k = pairKey(a, b);
+    const cur = S.status[k] || {};
+    if (!date) {
+      // Limpou a data: volta a valer a sugestão da rodada.
+      if (cur.st === 'done') { cur.dt = ''; cur.hr = ''; } else delete S.status[k];
+    } else {
+      S.status[k] = {
+        ...cur,
+        st: cur.st === 'done' ? 'done' : 'sched',
+        dt: date,
+        hr: time || S.plan[k]?.time || '',
+        by: S.me ? short(byId(S.me).n) : ''
+      };
+    }
+    await store.saveStatus(S.status);
+    render();
+  },
+
+  /* ── seleção e agendamento em lote ── */
+  toggleSel(k) {
+    if (S.sel.has(k)) S.sel.delete(k); else S.sel.add(k);
+    render();
+  },
+
+  selAll(keys) {
+    const list = keys.split(',').filter(Boolean);
+    const todos = list.every((k) => S.sel.has(k));
+    if (todos) list.forEach((k) => S.sel.delete(k));
+    else list.forEach((k) => S.sel.add(k));
+    render();
+  },
+
+  clearSel() { S.sel.clear(); render(); },
+
+  /**
+   * Agenda em lote. Preencher 29 datas uma a uma não é trabalho de gestor,
+   * então as distribuições cobrem as formas reais de encaixar:
+   *
+   *  sequencia — tudo no mesmo dia, um encontro após o outro (duração + 15 min
+   *              de folga). É o "vou tirar a tarde para isso".
+   *  dia       — um por dia útil, a partir da data escolhida.
+   *  semana    — um por semana, mesmo dia da semana.
+   *  sugerida  — devolve para as datas que o rodízio já tinha proposto.
+   */
+  async bulkSchedule() {
+    const keys = [...S.sel];
+    if (!keys.length) return toast('Selecione pelo menos um encontro.', 'alert');
+
+    const date = document.getElementById('bkDate')?.value;
+    const time = document.getElementById('bkTime')?.value;
+    const mode = document.getElementById('bkMode')?.value || 'sequencia';
+    if (mode !== 'sugerida' && (!date || !time)) return toast('Informe data e horário.', 'alert');
+
+    const antes = JSON.parse(JSON.stringify(S.status));
+    const ordenados = keys.slice().sort((x, y) => (S.plan[x]?.round || 0) - (S.plan[y]?.round || 0));
+    const passo = Number(S.cfg.duration) + 15;
+    let dia = date;
+
+    ordenados.forEach((k, i) => {
+      const cur = S.status[k] || {};
+      if (cur.st === 'done') return;
+      let d = date, h = time;
+
+      if (mode === 'sugerida') {
+        d = S.plan[k]?.date; h = S.plan[k]?.time;
+      } else if (mode === 'sequencia') {
+        h = addMinutes(time, passo * i);
+      } else if (mode === 'dia') {
+        if (i > 0) dia = nextWeekday(dia);
+        d = dia;
+      } else if (mode === 'semana') {
+        d = addDays(date, 7 * i);
+      }
+      S.status[k] = { ...cur, st: 'sched', dt: d, hr: h, by: S.me ? short(byId(S.me).n) : '' };
+    });
+
+    S.sel.clear();
+    await store.saveStatus(S.status);
+    render();
+    toast(`${ordenados.length} encontro(s) agendado(s).`, 'calendar', {
+      label: 'Desfazer',
+      run: async () => {
+        S.status = antes;
+        await store.saveStatus(S.status);
+        render();
+        toast('Agendamentos desfeitos.', 'undo');
+      }
+    });
+  },
+
   openTeams(a, b) {
-    const pl = S.plan[pairKey(a, b)];
+    const k = pairKey(a, b);
+    const w = S.whenOf(k);
     window.open(
-      teamsMeetingLink(a, b, { date: pl?.date, time: pl?.time, cfg: S.cfg, mailOf: S.mailOf }),
+      teamsMeetingLink(a, b, { date: w.date, time: w.time, cfg: S.cfg, mailOf: S.mailOf }),
       '_blank', 'noopener'
     );
-    if (!S.status[pairKey(a, b)]) App.setStatus(a, b, 'sched', pl?.date || '');
+    // Abrir o convite já conta como agendado, mas sem sobrescrever o que a
+    // pessoa tiver combinado: grava a data que de fato foi para o Teams.
+    if (S.status[k]?.st !== 'done') App.setSchedule(a, b, w.date, w.time);
   },
 
   openDone(a, b) {
@@ -310,7 +423,8 @@ const App = {
     if (!S.me) return App.openWho();
     const items = App.myPairs().map((k) => {
       const [a, b] = k.split('-').map(Number);
-      return { a, b, date: S.plan[k].date, time: S.plan[k].time };
+      const w = S.whenOf(k);
+      return { a, b, date: w.date, time: w.time };
     });
     download(
       `meus-1x1-${short(byId(S.me).n).toLowerCase().replace(/\s+/g, '-')}.ics`,
@@ -323,7 +437,8 @@ const App = {
   downloadAllICS() {
     const items = Object.keys(S.plan).map((k) => {
       const [a, b] = k.split('-').map(Number);
-      return { a, b, date: S.plan[k].date, time: S.plan[k].time };
+      const w = S.whenOf(k);
+      return { a, b, date: w.date, time: w.time };
     });
     download('rodizio-1x1-completo.ics',
       buildICS(items, { cfg: S.cfg, mailOf: S.mailOf, organizers: S.organizers }), 'text/calendar');
@@ -344,7 +459,8 @@ const App = {
       const other = a === S.me ? b : a;
       const st = S.status[k];
       const who = st?.st === 'done' ? 'CONCLUÍDO' : S.organizers[k] === S.me ? 'você convida' : 'ele(a) convida';
-      return `R${String(S.plan[k].round).padStart(2, '0')} ${fmtDate(S.plan[k].date)} ${S.plan[k].time} — ${byId(other).n} (${byId(other).c}) — ${who}`;
+      const w = S.whenOf(k);
+      return `R${String(S.plan[k].round).padStart(2, '0')} ${fmtDate(w.date)} ${w.time} — ${byId(other).n} (${byId(other).c}) — ${who}`;
     });
     copy(`Meus 1x1 · Five Behaviors — ${byId(S.me).n}\n\n${lines.join('\n')}\n\nRelatórios: ${S.cfg.driveUrl}`, 'Lista copiada.');
   },

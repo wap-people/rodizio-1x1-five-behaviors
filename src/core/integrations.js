@@ -145,7 +145,7 @@ export function buildICS(items, { cfg, mailOf, organizers }) {
 
 export function buildCSV({ plan, status, organizers, mailOf, fmtDate }) {
   const rows = [
-    ['Rodada','Data prevista','Horario','Pessoa A','Cargo A','E-mail A','Pessoa B','Cargo B','E-mail B','Organizador','Status','Data realizada','Nota']
+    ['Rodada','Data sugerida','Data combinada','Horario','Pessoa A','Cargo A','E-mail A','Pessoa B','Cargo B','E-mail B','Organizador','Status','Data realizada','Nota']
   ];
   Object.keys(plan)
     .sort((x, y) => plan[x].round - plan[y].round)
@@ -155,7 +155,8 @@ export function buildCSV({ plan, status, organizers, mailOf, fmtDate }) {
       rows.push([
         plan[k].round,
         fmtDate(plan[k].date),
-        plan[k].time || '',
+        s.dt ? fmtDate(s.dt) : '',
+        s.hr || plan[k].time || '',
         byId(a).n, byId(a).c, mailOf(a),
         byId(b).n, byId(b).c, mailOf(b),
         short(byId(organizers[k]).n),

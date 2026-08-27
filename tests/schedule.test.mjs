@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildRounds, assignOrganizers, buildDates, buildSlots, buildPlan, pairKey, addMinutes, pct
+  buildRounds, assignOrganizers, buildDates, buildSlots, buildPlan, pairKey,
+  addMinutes, addDays, nextWeekday, pct
 } from '../src/core/schedule.js';
 import { PARTICIPANTS, mail } from '../src/data/participants.js';
 
@@ -204,4 +205,30 @@ test('ninguem tem dois encontros no mesmo dia e horario', () => {
       ocupado.add(slot);
     }
   }
+});
+
+// ── datas do agendamento em lote ──────────────────────────────────────────
+// Datas sao strings YYYY-MM-DD de ponta a ponta justamente para nao esbarrar
+// em fuso; estes testes existem para que continue assim.
+
+test('addDays atravessa virada de mes e de ano', () => {
+  assert.equal(addDays('2026-09-30', 1), '2026-10-01');
+  assert.equal(addDays('2026-12-31', 1), '2027-01-01');
+  assert.equal(addDays('2026-10-01', -1), '2026-09-30');
+  assert.equal(addDays('2026-09-10', 7), '2026-09-17');
+});
+
+test('nextWeekday pula o fim de semana', () => {
+  assert.equal(nextWeekday('2026-09-10'), '2026-09-11', 'quinta -> sexta');
+  assert.equal(nextWeekday('2026-09-11'), '2026-09-14', 'sexta -> segunda');
+  assert.equal(nextWeekday('2026-09-12'), '2026-09-14', 'sabado -> segunda');
+  assert.equal(nextWeekday('2026-09-13'), '2026-09-14', 'domingo -> segunda');
+});
+
+test('sequencia no mesmo dia respeita a duracao mais a folga', () => {
+  // e o calculo que o agendamento em lote usa: duracao + 15 min entre encontros
+  const passo = 45 + 15;
+  assert.equal(addMinutes('09:00', passo * 0), '09:00');
+  assert.equal(addMinutes('09:00', passo * 1), '10:00');
+  assert.equal(addMinutes('09:00', passo * 3), '12:00');
 });

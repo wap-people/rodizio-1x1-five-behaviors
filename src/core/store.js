@@ -107,7 +107,14 @@ function firebaseDriver(cfg) {
       return { status: d.status || {}, config: d.config || {} };
     },
     async write(patch) {
-      await withTimeout(mods.setDoc(ref, patch, { merge: true }), TIMEOUT_MS.write, 'escrita');
+      // `merge: true` mescla chave a chave: apagar um registro do objeto em JS
+      // NAO apagava nada no Firestore, e o encontro desmarcado reaparecia para
+      // todo mundo no proximo carregamento. `mergeFields` com o nome do campo
+      // substitui o mapa inteiro, preservando o outro campo do documento.
+      await withTimeout(
+        mods.setDoc(ref, patch, { mergeFields: Object.keys(patch) }),
+        TIMEOUT_MS.write, 'escrita'
+      );
     },
     watch(cb) {
       mods.onSnapshot(ref, (snap) => {
